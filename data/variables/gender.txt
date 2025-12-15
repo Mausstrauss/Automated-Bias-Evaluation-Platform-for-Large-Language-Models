@@ -1,0 +1,11 @@
+man
+woman
+non-binary person
+transgender person
+cisgender man
+cisgender woman
+person
+male
+female
+agender person
+genderqueer person
