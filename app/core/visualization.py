@@ -1,60 +1,61 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from math import pi
-import os
+import plotly.express as px
+import plotly.graph_objects as go
+import pandas as pd
 
 class BiasVisualizer:
-    """
-    Generates the 'Multi-Axis Bias Profile' (Radar Chart).
-    This is the 'Artist' that draws the visualization for both the CLI and Web App.
-    """
     
-    def __init__(self, output_dir="output"):
-        self.output_dir = output_dir
-        # Ensure the output directory exists
-        os.makedirs(self.output_dir, exist_ok=True)
 
-    def plot_radar_profile(self, profile_data: dict, model_name: str):
-        """
-        Creates a Radar Chart where each axis is a bias category.
-        """
-        if not profile_data:
-            return
-
-        # 1. Prepare Data
-        categories = list(profile_data.keys())
-        values = list(profile_data.values())
-        N = len(categories)
-
-        # We need to repeat the first value to close the circle
-        values += values[:1]
+    def create_comparison_bar(self, history_df: pd.DataFrame):
         
-        # Calculate angles for each axis
-        angles = [n / float(N) * 2 * pi for n in range(N)]
-        angles += angles[:1]
+        if history_df.empty: return None
+        
+        
+        latest_df = history_df.sort_values("Timestamp").groupby(["Model", "Metric"]).tail(1)
+        
+        fig = px.bar(
+            latest_df,
+            x="Metric",
+            y="Score",
+            color="Model",
+            barmode="group",
+            title="Model Benchmarking: Direct Comparison",
+            color_discrete_sequence=px.colors.qualitative.Bold, 
+            text_auto='.2f'
+        )
+        
+        fig.update_layout(yaxis_title="Bias Score (Lower is Better)")
+        return fig
 
-        # 2. Setup Plot
-        fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+    def create_heatmap(self, history_df: pd.DataFrame):
+       
+        if history_df.empty: return None
         
-        # Draw one axis per variable + labels
-        plt.xticks(angles[:-1], categories, color='grey', size=10)
         
-        # Draw y-labels (0.2, 0.4, ... 1.0)
-        ax.set_rlabel_position(0)
-        plt.yticks([0.2, 0.4, 0.6, 0.8, 1.0], ["0.2", "0.4", "0.6", "0.8", "1.0"], 
-                   color="grey", size=7)
-        plt.ylim(0, 1.0)
+        pivot_df = history_df.groupby(["Model", "Metric"])["Score"].mean().unstack()
+        
+        fig = px.imshow(
+            pivot_df,
+            labels=dict(x="Metric", y="Model", color="Bias Score"),
+            x=pivot_df.columns,
+            y=pivot_df.index,
+            color_continuous_scale="RdYlGn_r", 
+            range_color=[0, 0.5], 
+            text_auto='.2f',
+            title="Bias Heatmap (Red = High Risk)"
+        )
+        return fig
 
-        # 3. Plot Data
-        ax.plot(angles, values, linewidth=1, linestyle='solid', label=model_name)
-        ax.fill(angles, values, 'b', alpha=0.1)
-
-        # 4. Finish
-        plt.title(f"Bias Profile: {model_name}", size=15, y=1.1)
+    def create_trend_line(self, history_df: pd.DataFrame):
+       
+        if history_df.empty: return None
         
-        # Save to file (Mainly for the CLI version)
-        filename = f"{self.output_dir}/bias_radar_{model_name.replace('/', '_')}.png"
-        plt.savefig(filename)
-        
-        # Close plot to free memory (Important for web apps!)
-        plt.close(fig)
+        fig = px.line(
+            history_df, 
+            x="Timestamp", 
+            y="Score", 
+            color="Model", 
+            symbol="Metric",
+            markers=True,
+            title="Bias Evolution over Time"
+        )
+        return fig

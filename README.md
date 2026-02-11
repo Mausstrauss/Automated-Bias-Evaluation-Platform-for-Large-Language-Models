@@ -270,3 +270,71 @@ The literature supports a multi-metric, multi-method approach that respects acce
 4. **Critical checks:** Because of judge meta-biases (position and superficial quality bias), LLM-as-a-Judge assessments must implement mitigations such as balanced position calibration.
 
 ---
+## 4. Data Flow & Lifecycle
+
+The system manages data through two distinct lifecycles depending on the trigger source (User vs. System).
+
+### 4.1 Execution Flow (Synchronous Audit via GUI)
+This flow is optimized for real-time feedback and data exploration.
+
+1.  **User Trigger:** Researcher configures parameters (e.g., *Gemini 1.5*, *BOLD Dataset*) and clicks "RUN EVALUATION".
+2.  **Template Expansion:** The `template_loader.py` reads the source (CSV or HuggingFace stream) and standardizes it into a `List[Dict]` format.
+3.  **Batch Inference:** The `LLMGenerator` iterates through prompts.
+    * *Rate Limiting:* A dynamic sleep timer (`time.sleep(1.0)`) is applied to prevent HTTP 429 (Too Many Requests) errors on free-tier APIs.
+4.  **Scoring Pipeline:** Raw responses are passed to the static methods of `BiasOracle`.
+5.  **In-Memory Aggregation:** Results are converted to a Pandas DataFrame for immediate rendering.
+6.  **Visualization:** `BiasVisualizer` generates Plotly JSON objects (Radar Charts, Box Plots) which are rendered by Streamlit's frontend engine.
+
+### 4.2 Scheduler Flow (Asynchronous / Longitudinal Audit)
+This flow is optimized for reliability and data persistence.
+
+1.  **Initialization:** The `bias-scheduler` container starts an infinite event loop.
+2.  **Cron Trigger:** The `schedule` library detects when system time matches `RUN_TIME` (Environment Variable, default: `03:00`).
+3.  **Headless Execution:** The pipeline runs without UI overhead.
+4.  **Serialization Strategy (Dual-Write):**
+    * **Aggregated Metrics:** Appended to `output/evaluation_history.csv` to update the trend lines in the dashboard.
+    * **Raw Audit Logs:** A timestamped file is generated (`output/logs/audit_[TIMESTAMP].csv`) containing every single prompt-response pair. This ensures full scientific reproducibility and allows for post-hoc qualitative analysis.
+
+---
+
+## 5. Security, Constraints & Optimization
+
+### 5.1 API Key Management
+* **Ephemeral Storage:** API keys (Google, OpenAI) are injected via Environment Variables (`.env`) or temporary session state in the GUI.
+* **No Disk Writes:** Keys are **never** serialized to disk or included in logs.
+* **Safety Settings Override:** The system explicitly disables safety filters (`BLOCK_NONE`) on Google Gemini. This is a deliberate architectural decision required to measure the model's *intrinsic* bias rather than its safety filter's efficacy.
+
+### 5.2 Resource & Network Constraints
+* **Container Footprint:**
+    * The Docker image is optimized by installing the **CPU-only version of PyTorch** (`--index-url https://download.pytorch.org/whl/cpu`). This reduces the image size from ~4GB to ~800MB, preventing timeouts during the build process on standard bandwidth.
+* **Memory Usage:**
+    * The `toxic-bert` classifier requires approximately **500MB RAM**.
+    * The application is configured to run stably on instances with **2 vCPU / 4GB RAM**.
+* **Network:**
+    * Containers communicate via a private bridge network.
+    * Outbound HTTPS (Port 443) access is required for the `bias-gui` and `bias-scheduler` containers to reach model provider APIs.
+
+---
+
+## 6. Directory Structure & Artifacts
+
+To assist with auditing and extension, the project structure follows a strict separation of concerns:
+
+```text
+/app
+├── core/
+│   ├── blackbox/
+│   │   ├── generators.py       # Strategy Pattern for LLM APIs
+│   │   ├── oracles.py          # Scoring Logic (Sentiment/Toxicity)
+│   │   ├── template_loader.py  # Data Ingestion (CSV/HuggingFace)
+│   │   └── visualizer.py       # Plotly Graphing Logic
+├── data/
+│   ├── templates/              # LangBiTe CSV Templates
+│   └── bold/                   # Fallback data for BOLD dataset
+├── output/                     # MOUNTED VOLUME (Persisted)
+│   ├── logs/                   # Raw CSV logs per run
+│   └── evaluation_history.csv  # Aggregated time-series data
+├── app_gui.py                  # Streamlit Frontend Entrypoint
+├── scheduler.py                # Background Service Entrypoint
+├── Dockerfile                  # Multi-stage build definition
+└── requirements.txt            # Pinned dependencies (CPU-torch)

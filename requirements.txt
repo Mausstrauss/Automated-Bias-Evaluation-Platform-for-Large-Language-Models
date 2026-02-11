@@ -1,23 +1,18 @@
-# White-Box Dependencies (Embeddings & Models)
-torch>=2.0.0
-transformers>=4.30.0
 numpy>=1.24.0
-
-# Black-Box Dependencies (Data processing & LangBiTe support)
 pandas>=2.0.0
-scipy>=1.10.0      # For Wasserstein Distance
-textblob>=0.17.1   # For Sentiment Analysis
+scipy>=1.10.0
+textblob>=0.17.1
 datasets
-pandas
 langchain
 langchain-openai
 matplotlib
 streamlit
-datasets
-torch>=2.0.0
+plotly
+schedule
 transformers>=4.30.0
 openai
-google-generativeai    # For Gemini
-anthropic              # For Claude
-mistralai              # For Mistral
-huggingface_hub        # For Meta (Llama 3 via Inference API)
+google-generativeai
+anthropic
+mistralai
+huggingface_hub
+python-dotenv

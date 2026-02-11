@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # SERVICE 1: Das Dashboard (Frontend)
+  bias-gui:
+    build: .
+    container_name: bias-eval-dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app  # <--- WICHTIG: Damit die Config geteilt wird!
+    env_file:
+      - .env
+    # Installiert Dependencies beim Start neu, falls sich requirements.txt ändert
+    command: sh -c "pip install -r requirements.txt && streamlit run app_gui.py --server.port=8501 --server.address=0.0.0.0"
+    restart: always
+
+  # SERVICE 2: Der Scheduler (Hintergrund-Dienst)
+  bias-scheduler:
+    build: .
+    container_name: bias-eval-scheduler
+    volumes:
+      - .:/app  # <--- WICHTIG: Damit er die Config der GUI lesen kann!
+    env_file:
+      - .env
+    command: sh -c "pip install -r requirements.txt && python scheduler.py"
+    restart: always

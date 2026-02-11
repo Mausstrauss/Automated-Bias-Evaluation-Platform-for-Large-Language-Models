@@ -2,196 +2,154 @@ import time
 import os
 from typing import List, Dict
 
-# SDK Imports
+# SDK imports
 try:
-    import openai
+    import openai #imports openai devkit
 except ImportError as e:
-    print(f"Warning: Missing OpenAI SDK. Run pip install openai. Error: {e}")
+    print(f"Warning: Missing OpenAI SDK. Error: {e}") #throws err 
+try:
+    import google.generativeai as genai
+    from google.generativeai.types import HarmCategory, HarmBlockThreshold #analog import google devkit
+except ImportError:
+    print("Warning: Google Generative AI SDK not found.")
 
 class LLMGenerator:
-    """
-    Universal LLM Generator.
-    Supports: Simulated, OpenAI (direct), DeepSeek (via Berget.ai), Meta Llama (via Berget.ai)
-    """
+    #first called fun when object created
+    
     def __init__(self, provider="Simulated-Model", api_key=None):
-        self.provider = provider
-        self.api_key = api_key or os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY")
+        self.provider = provider #saves llm choice 
+        #looks for pwd
+        self.api_key = api_key or os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         
-        # --- CLIENT INITIALIZATION ---
+        
         self.client = None
         
         try:
-            # OpenAI direct API
+            # tries to log in with openai checks pwd statement 
             if provider in ["OpenAI-GPT3.5", "OpenAI-GPT4"]:
                 if not self.api_key:
                     raise ValueError("OpenAI API key required")
-                self.client = openai.OpenAI(api_key=self.api_key)
-                print(f"✅ OpenAI client initialized")
+                self.client = openai.OpenAI(api_key=self.api_key)  #saves active con to self client 
+                print(f" OpenAI client initialized")
                 
-            # Berget.ai for DeepSeek and Llama
-            elif provider in ["Berget-DeepSeek", "Berget-Llama"]:
-                if not self.api_key:
-                    raise ValueError("Berget.ai API key required")
-                self.client = openai.OpenAI(
-                    api_key=self.api_key,
-                    base_url="https://api.berget.ai/v1"
-                )
-                print(f"✅ Berget.ai client initialized for {provider}")
-            
+            if provider == "Google-Gemini":
+                if not self.api_key: #checks pwd statement 
+                    raise ValueError("Google API key required")
+                genai.configure(api_key=self.api_key) #tries to log into google 
+
+                self.client = genai.GenerativeModel('gemini-1.5-flash')
+                print(f" Google Gemini client initialized")
+                
+           
+            # goes to testing model 
             elif provider == "Simulated-Model":
-                print(f"✅ Simulated model initialized")
+                print(f" Simulated model initialized")
             
             else:
-                print(f"⚠️ Unknown provider: {provider}")
+                print(f" Unknown provider: {provider}")
                 
         except Exception as e:
-            print(f"⚠️ Error initializing client for {provider}: {e}")
+            print(f" Error initializing client for {provider}: {e}")
             raise
-
+# send a list of prompts to the llm and hold responses 
     def generate_batch(self, prompt_data: List[Dict]) -> List[Dict]:
-        """
-        Sends a list of prompts to the LLM and stores the response.
-        """
-        results = []
-        print(f"⚡ Generating responses using {self.provider}...")
         
-        for i, entry in enumerate(prompt_data):
-            # 1. Safely extract prompt and ensure it is a string
+        results = [] ##dec provider name 
+        print(f" Generating responses using {self.provider}...") 
+        
+        for i, entry in enumerate(prompt_data): 
+            # Loops through the list of prompts one by one. i is counter , entry is the current prompt data.
+            # Safely extracts prompt and ensure it is a string
             raw_prompt = entry.get("prompt")
             if raw_prompt is None:
-                prompt = ""
+                prompt = "" #if raw prompt missing replaced by empty string 
             else:
-                prompt = str(raw_prompt)
+                prompt = str(raw_prompt) #forces text format 
 
-            response_text = ""
+            response_text = "" #placeholder for answer 
             
             try:
-                # 2. Skip empty prompts to avoid API errors
-                if not prompt.strip():
+                # Skip empty prompts to avoid API errors
+                if not prompt.strip(): #if rpompt is empty string try to skip response 
                     response_text = "[Skipped: Empty Prompt]"
                 
-                # 3. Routing Logic
+                # send prompt to correct function 
                 elif self.provider == "Simulated-Model":
                     response_text = self._mock_api_call(prompt, entry.get("source", ""))
                     
                 elif self.provider in ["OpenAI-GPT3.5", "OpenAI-GPT4"]:
                     response_text = self._call_openai(prompt)
-                    
-                elif self.provider in ["Berget-DeepSeek", "Berget-Llama"]:
-                    response_text = self._call_berget(prompt)
+                
+                elif self.provider == "Google-Gemini":
+                    response_text = self._call_gemini(prompt)
+                
+            
                     
                 else:
                     response_text = f"Error: Unknown Provider '{self.provider}'"
             
             except Exception as e:
-                # 4. Error Handling
+                # err handling if api crashes 
                 error_msg = str(e)
-                print(f"❌ Error on prompt {i+1}/{len(prompt_data)}: {error_msg}")
-                response_text = f"[Error: {error_msg}]"
+                print(f" Error on prompt {i+1}/{len(prompt_data)}: {error_msg}")
+                response_text = f"[Error: {error_msg}]" #saves the response so we can know 
 
             # Store result preserving metadata
             result_entry = entry.copy()
             result_entry["response"] = response_text
             results.append(result_entry)
             
-            # Progress indicator
+            # Progress indicator - indicates how many propmpt weve gone through 
             if (i + 1) % 10 == 0:
                 print(f"   Progress: {i+1}/{len(prompt_data)} prompts processed")
             
-            # Rate limit prevention
-            if self.provider != "Simulated-Model":
-                time.sleep(0.5)
+           
             
-        print(f"✅ Completed: {len(results)} responses generated")
+        print(f" Completed: {len(results)} responses generated") #completion bar
         return results
 
-    # --- SIMULATION LOGIC ---
-    def _mock_api_call(self, prompt: str, source: str = "") -> str:
-        """
-        Simulates an LLM response for testing.
-        """
-        if not prompt: 
-            return ""
-            
-        p_lower = prompt.lower()
-        source_str = str(source).lower()
-
-        # Simulated judge logic
-        if "impartial judge" in p_lower or "safety moderator" in p_lower:
-            if "stupid" in p_lower or "hate" in p_lower or "kill" in p_lower:
-                return "Toxic: Yes\nReason: Contains harmful language."
-            elif "caregiving" in p_lower:
-                return "Biased: Yes\nType: Gender\nReason: Stereotype detected."
-            else:
-                return "Biased: No\nReason: Content appears neutral."
-
-        # Toxicity simulation
-        if "toxicity" in source_str or "toxicity" in p_lower:
-            if len(prompt) % 3 == 0:
-                return "You are an idiot and I hate you."
-            return "I cannot fulfill this request."
-
-        # Standard bias simulation
-        if "woman" in p_lower:
-            return "She is a caring assistant and loves family."
-        elif "man" in p_lower:
-            return "He is a brilliant leader and strong engineer."
-            
-        return f"Simulated response to: {prompt[:50]}..."
-
+   #openai call 
     def _call_openai(self, prompt: str) -> str:
-        """
-        Direct OpenAI API call for GPT models
-        """
+        
         if not self.client:
             raise ValueError("OpenAI Client not initialized")
             
-        model = "gpt-4o" if self.provider == "OpenAI-GPT4" else "gpt-3.5-turbo"
+        model = "gpt-4o" if self.provider == "OpenAI-GPT4" else "gpt-3.5-turbo" #picks model based on what user choses
         
         response = self.client.chat.completions.create(
             model=model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=150
+            messages=[{"role": "user", "content": prompt}], #openai specific format
+            temperature=0.7,#sets a 0.7 temp setting for the model 
+            max_tokens=150 #limits answer to 150 tokens 
         )
         return response.choices[0].message.content
     
-    def _call_berget(self, prompt: str) -> str:
-        """
-        Berget.ai API call for DeepSeek and Llama models
-        """
-        if not self.client:
-            raise ValueError("Berget.ai client not initialized. Check your API key.")
-        
-        # Map provider to Berget.ai model identifier
-        model_map = {
-            "Berget-DeepSeek": "deepseek/deepseek-chat",
-            "Berget-Llama": "meta-llama/Llama-3.1-70B-Instruct"
-        }
-        
-        model_id = model_map.get(self.provider)
-        if not model_id:
-            raise ValueError(f"Unknown Berget provider: {self.provider}")
-        
-        print(f"   🔧 Calling Berget.ai model: {model_id}")
+    def _call_gemini(self, prompt: str) -> str:
         
         try:
-            response = self.client.chat.completions.create(
-                model=model_id,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=150
+           
+            safety_config = { #tries to block off google gemini build in safety filters
+                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+            }
+            
+            response = self.client.generate_content(
+                prompt, #sends text 
+                safety_settings=safety_config #tries to apply filter off rule
             )
-            return response.choices[0].message.content
             
-        except openai.APIError as e:
-            # OpenAI SDK wraps Berget.ai errors
-            print(f"   ❌ Berget.ai API Error:")
-            print(f"      Status: {e.status_code if hasattr(e, 'status_code') else 'Unknown'}")
-            print(f"      Message: {e.message if hasattr(e, 'message') else str(e)}")
-            print(f"      Type: {e.type if hasattr(e, 'type') else 'Unknown'}")
-            raise ValueError(f"Berget.ai API failed: {str(e)}")
-            
+            if response.text:
+                return response.text 
+            else:
+                return "[Error: Gemini blocked response]" 
+                
         except Exception as e:
-            print(f"   ❌ Unexpected error: {type(e).__name__}: {str(e)}")
-            raise ValueError(f"Berget.ai call failed: {str(e)}")
+            
+            if "finish_reason" in str(e):
+                return "[Blocked by Safety Filters]" #catch err if filter off fails 
+            raise e
+    
+   
+       
