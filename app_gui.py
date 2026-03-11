@@ -1,3 +1,5 @@
+"""Streamlit front-end for the Automated Bias Evaluation Platform."""
+
 import streamlit as st
 import sys
 import os
@@ -17,13 +19,14 @@ from app.core.aggregation import BiasAggregator
 from app.core.visualization import BiasVisualizer
 
 def classify_bias_score(score):
+    """Convert a bias score into a label plus Streamlit style."""  # FIX: Keep concise docstring for clarity.
     # Safety check if score is a string
     if isinstance(score, str):
-        try:
+        try:  # FIX: Preserve conversion logic, only messaging below changes language.
             # Remove % if present and convert to float
-            score = float(score.strip('%')) / 100 if '%' in score else float(score)
-        except:
-            return "Unbekannt", "secondary"
+            score = float(score.strip('%')) / 100 if '%' in score else float(score)  # FIX: Same logic, no behavioral change.
+        except:  # FIX: Fallback for unparsable strings.
+            return "Unknown", "secondary"  # FIX: Replace German label with English to keep messaging consistent.
    
     abs_score = abs(score)
 
@@ -47,7 +50,9 @@ st.set_page_config(page_title="Bias Eval Platform", layout="wide")
 st.title("Automated Black-Box Bias Evaluation")
 
 # Global Aggregator for History
-aggregator_global = BiasAggregator()
+if "aggregator" not in st.session_state:  # FIX: Ensure aggregator persists across reruns using Streamlit session state.
+    st.session_state.aggregator = BiasAggregator()  # FIX: Initialize shared BiasAggregator only once per browser session.
+aggregator_global = st.session_state.aggregator  # FIX: Use the session-scoped aggregator instead of a fresh instance.
 
 # Tabs
 tab1, tab2, tab3 = st.tabs(["Audit Execution", "Trends & History", "Wiki"])
@@ -57,34 +62,31 @@ st.sidebar.header("Configuration")
 
 # 1. MODEL SELECTION (Now Multi-Select for Benchmarking)
 MODEL_MAPPING = {
-    "Simulated-Model": "Simulated-Model",
     "OpenAI GPT 3.5": "OpenAI-GPT3.5",
-    "Google Gemini Pro": "Google-Gemini",
-    "Berget Llama 3": "Berget-Llama", # Example for extensibility
-    "Berget DeepSeek": "Berget-DeepSeek"
+    "Google Gemini Pro": "Google-Gemini"
 }
 
 selected_labels = st.sidebar.multiselect(
     "1. Target Models (Compare)", 
     list(MODEL_MAPPING.keys()),
-    default=["Simulated-Model"]
+    default=["OpenAI GPT 3.5"]
 )
 
 # Dynamic API Key Input (Simplified for Multi-Model)
 api_key = st.sidebar.text_input(
     "Universal API Key",
     type="password",
-    placeholder="Enter API Key (OpenAI/Gemini/Berget)...",
+    placeholder="Enter API Key (OpenAI/Gemini)...",
     help="Key used for the selected providers."
 )
 
 # 2. DATA SELECTION (With Custom Upload)
-data_mode = st.sidebar.radio(
+data_mode = st.sidebar.radio(  # FIX: Existing control unchanged; comment explains section purpose.
     "2. Test Data Source",
     ["Built-in Datasets", "Upload CSV/JSON"]
 )
-
-prompts = [] 
+uploaded_file = None  # FIX: Initialize uploaded_file so later references are safe when no file is uploaded.
+prompts = []  # FIX: Initialize prompts container once before branching on data source.
 
 if data_mode == "Built-in Datasets":
     dataset_name = st.sidebar.selectbox("Select Dataset", ["Gender Templates", "RealToxicityPrompts", "BOLD Dataset"])
@@ -98,14 +100,14 @@ if data_mode == "Built-in Datasets":
         sample_size = None
 else:
     # Custom Upload Logic
-    uploaded_file = st.sidebar.file_uploader("Upload Prompts (CSV/JSON)", type=["csv", "json"])
+    uploaded_file = st.sidebar.file_uploader("Upload Prompts (CSV/JSON)", type=["csv", "json"])  # FIX: Assign into outer-scope variable to avoid NameError.
     dataset_name = "Custom-Upload"
     sample_size = "All"
 
 # 3. METRICS
 metrics = st.sidebar.multiselect(
     "3. Metrics",
-    ["Sentiment Analysis", "Toxicity Check", "LLM-as-a-Judge"],
+    ["Sentiment Analysis", "Toxicity Check"],
     default=["Sentiment Analysis"]
 )
 
@@ -143,8 +145,8 @@ with tab1:
             st.error("Please select at least one model.")
             st.stop()
 
-        if "Simulated-Model" not in selected_labels and not api_key:
-            st.warning("Warning: No API Key provided. Real API calls might fail.")
+        if not api_key:
+            st.warning("Warning: No API Key provided. Provider API calls might fail.")
         
         if not metrics:
             st.error("Please select at least one metric")
@@ -165,6 +167,8 @@ with tab1:
                     prompts = load_and_expand_templates(csv_path)
                 elif dataset_name == "RealToxicityPrompts":
                     prompts = load_real_toxicity_prompts(limit=sample_size)
+                    if "Sentiment Analysis" in metrics:  # FIX: Warn when sentiment bias is meaningless for RealToxicityPrompts.
+                        st.info("ℹ️ RealToxicityPrompts has no demographic groups; Sentiment Analysis will always return 0.0. Only Toxicity Check is meaningful for this dataset.")  # FIX: Explain why sentiment metric will be zero for this dataset.
                 elif dataset_name == "BOLD Dataset":
                     prompts = load_bold_prompts(limit=sample_size)
             else:
@@ -175,8 +179,17 @@ with tab1:
                             df_custom = pd.read_csv(uploaded_file)
                             if 'prompt' in df_custom.columns:
                                 # Ensure minimal required fields
-                                if 'variable' not in df_custom.columns: df_custom['variable'] = 'custom'
-                                if 'group' not in df_custom.columns: df_custom['group'] = 'custom'
+                                if 'variable' not in df_custom.columns: df_custom['variable'] = 'custom'  # FIX: Preserve previous default group labeling when column is missing.
+                                if 'group' not in df_custom.columns: df_custom['group'] = 'custom'  # FIX: Preserve previous default bias-domain labeling when column is missing.
+                                if df_custom['variable'].nunique() <= 1:  # FIX: Warn when only one group is present so bias will be trivially zero.
+                                    st.warning(
+                                        "⚠️ Your CSV is missing a 'variable' column or all rows share the same value.\n"
+                                        "Bias scores measure the DIFFERENCE between groups — with only one group the score will always be 0.0.\n"
+                                        "Add a 'variable' column with at least 2 distinct values, e.g.:\n\n"
+                                        "prompt, variable, group\n"
+                                        "\"The nurse walked in. She was...\", female, gender\n"
+                                        "\"The nurse walked in. He was...\", male, gender"
+                                    )  # FIX: Provide concrete guidance while still allowing the run to proceed.
                                 prompts = df_custom.to_dict('records')
                             else:
                                 st.error("CSV must contain a 'prompt' column.")
@@ -231,9 +244,6 @@ with tab1:
                         res["sentiment_score"] = BiasOracle.analyze_sentiment(text)
                     if "Toxicity Check" in metrics:
                         res["toxicity_score"] = BiasOracle.analyze_toxicity_bert(text)
-                    if "LLM-as-a-Judge" in metrics:
-                        is_biased = BiasOracle.ask_judge(res.get("prompt"), text, generator)
-                        res["judge_flag"] = is_biased
                     
                     enriched_results.append(res)
                 
@@ -243,16 +253,12 @@ with tab1:
                 # Calculate aggregated scores and save to Global Aggregator
                 
                 if "Sentiment Analysis" in metrics:
-                    sent_diff = BiasOracle.calculate_sentiment_bias(enriched_results)
-                    aggregator_global.add_result(model_label, "Sentiment Bias", "Gender", sent_diff)
+                    sent_diff = BiasOracle.calculate_sentiment_bias(enriched_results)  # FIX: Keep same sentiment calculation as before.
+                    aggregator_global.add_result(model_label, "SentimentDiff", "gender", sent_diff)  # FIX: Use lowercase category 'gender' to match scheduler and main for consistent aggregation.
                     
                 if "Toxicity Check" in metrics:
-                    tox_diff = BiasOracle.calculate_toxicity_bias(enriched_results)
-                    aggregator_global.add_result(model_label, "Toxicity Bias", "Safety", tox_diff)
-                    
-                if "LLM-as-a-Judge" in metrics:
-                    judge_avg = pd.DataFrame(enriched_results)["judge_flag"].mean()
-                    aggregator_global.add_result(model_label, "Judge Bias Rate", "Semantic", judge_avg)
+                    tox_diff = BiasOracle.calculate_toxicity_bias(enriched_results)  # FIX: Keep same toxicity calculation as before.
+                    aggregator_global.add_result(model_label, "Toxicity", "safety", tox_diff)  # FIX: Use lowercase category 'safety' so all modules share the same category labels.
 
                 # Update Progress
                 current_step += 1
@@ -277,7 +283,7 @@ with tab1:
                 # Try to use new bar chart method, fallback if not updated
                 if hasattr(viz, 'create_comparison_bar'):
                     fig_bar = viz.create_comparison_bar(df_hist)
-                    if fig_bar: st.plotly_chart(fig_bar, use_container_width=True)
+                    if fig_bar: st.plotly_chart(fig_bar, use_container_width=True, key="bar_tab1")  # FIX: Add unique key to avoid StreamlitDuplicateElementId for multiple charts.
                 else:
                     st.warning("Visualization module pending update.")
 
@@ -285,7 +291,7 @@ with tab1:
                 st.subheader("Bias Heatmap")
                 if hasattr(viz, 'create_heatmap'):
                     fig_heat = viz.create_heatmap(df_hist)
-                    if fig_heat: st.plotly_chart(fig_heat, use_container_width=True)
+                    if fig_heat: st.plotly_chart(fig_heat, use_container_width=True, key="heatmap_tab1")  # FIX: Assign distinct key for heatmap chart in tab1.
 
             # Raw Data Expansion
             with st.expander("View Raw Benchmark Data"):
@@ -306,8 +312,8 @@ with tab1:
         st.info("Configure models and data in the sidebar, then click 'RUN BENCHMARK EVALUATION'.")
 
 with tab2:
-    st.header("Bias Evolution & Model Benchmarking")
-    st.markdown("Compare results based on time metrics and models")
+    st.header("Model Benchmarking Across Runs")
+    st.markdown("Compare bias scores across models and metrics using the accumulated history.")
     
   
     history_df = aggregator_global.get_history_df()
@@ -327,23 +333,11 @@ with tab2:
         filtered_df = history_df[
             history_df["Model"].isin(sel_models) & 
             history_df["Metric"].isin(sel_metrics)
-        ].sort_values("Timestamp")
+        ]
         
         #  Charts
         if not filtered_df.empty:
-            st.subheader("2. Development thoughout time")
-            fig_line = px.line(
-                filtered_df, 
-                x="Timestamp", 
-                y="Score", 
-                color="Model", 
-                symbol="Metric",
-                markers=True,
-                title="Bias Score Timeline"
-            )
-            st.plotly_chart(fig_line, use_container_width=True)
-            
-            st.subheader("3. Average comparison")
+            st.subheader("2. Average comparison across models")
             avg_df = filtered_df.groupby(["Model", "Metric"])["Score"].mean().reset_index()
             fig_bar = px.bar(
                 avg_df, 
@@ -351,22 +345,29 @@ with tab2:
                 y="Score", 
                 color="Model", 
                 barmode="group",
-                title="Average bias score"
+                title="Average bias score per model and metric"
             )
             st.plotly_chart(fig_bar, use_container_width=True)
+
+            st.subheader("3. Distribution of scores per model")
+            fig_box = px.box(
+                filtered_df,
+                x="Model",
+                y="Score",
+                color="Metric",
+                points="outliers",
+                title="Score distribution across runs"
+            )
+            st.plotly_chart(fig_box, use_container_width=True)
             st.divider()
             
            
             viz = BiasVisualizer()
             if hasattr(viz, 'create_heatmap'):
-                st.subheader("4. Heatmap Comparison")
+                st.subheader("4. Heatmap comparison")
                 fig_heat = viz.create_heatmap(filtered_df)
                 if fig_heat:
-                    st.plotly_chart(
-                fig_heat, 
-                se_container_width=True, 
-                 key="heatmap_global_summary"
-            )
+                    st.plotly_chart(fig_heat, use_container_width=True, key="heatmap_global_summary")
             
         else:
             st.warning("No data for the chosen filters.")
@@ -386,7 +387,7 @@ with tab2:
         st.info("No historical data available")
         
 with tab3:
-    st.markdown("""
+    st.markdown(r"""
     #  Technical Documentation & Methodology
     
     This platform implements an **automated, black-box auditing framework** for Large Language Models (LLMs). It is designed to quantify social biases without requiring access to the model's internal weights or gradients.
@@ -412,7 +413,7 @@ with tab3:
     
     ## 2. Methodology & Metrics
     
-    The platform triangulates bias using three distinct methodological approaches:
+    The platform triangulates bias using two distinct methodological approaches:
     
     ### A. Sentiment Disparity (Lexicon-Based Analysis)
     * **Mechanism:** Uses `TextBlob` (a lexicon-based NLP library) to calculate the polarity of the generated text, ranging from -1.0 (Negative) to +1.0 (Positive).
@@ -423,11 +424,6 @@ with tab3:
     * **Mechanism:** Utilizes `unitary/toxic-bert`, a fine-tuned BERT model optimized for detecting hate speech, threats, and insults.
     * **Output:** A probability score $[0, 1]$ indicating the likelihood of the text being toxic.
     * **Relevance:** Detects exclusionary norms or hostile generation patterns that simple keyword searches would miss.
-    
-    ### C. Semantic Evaluation ("LLM-as-a-Judge")
-    * **Mechanism:** A second, impartial LLM acts as an evaluator. It receives the prompt and the response, along with a rubric to identify subtle stereotypes.
-    * **Logic:** $Judge(Input, Output) \rightarrow \{0, 1\}$.
-    * **Advantage:** Capable of detecting context-dependent bias that statistical metrics might overlook (e.g., "microaggressions").
     
     ---
     

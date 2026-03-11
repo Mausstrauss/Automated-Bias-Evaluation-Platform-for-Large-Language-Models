@@ -57,7 +57,7 @@ Research methods for quantifying bias are most usefully classified by the requir
 **Approach 3 — Generated text based metrics (Black-box).** These methods analyze the final text produced by the model in response to prompts and are applicable to all API-based models.
 * **Principle:** Evaluate generated text for quality, toxicity, sentiment or stereotypical content.
 * **Requires:** Only API access (text in / text out).
-* **Examples:** Classifier-based metrics (toxicity, sentiment), distributional metrics (Wasserstein distance), LLM-as-a-Judge (GPTBIAS).
+* **Examples:** Classifier-based metrics (toxicity, sentiment), distributional metrics (Wasserstein distance).
 
 A key empirical finding is the weak or inconsistent correlation between intrinsic metrics (Approach 1 & 2) and extrinsic, real-world harms (Approach 3). Models trained with RLHF can pass many intrinsic tests by masking explicit bias while still exhibiting implicit or generative bias. For the planned platform, this implies prioritizing a *generation-first* (black-box) approach to obtain robust and actionable results.
 
@@ -149,20 +149,9 @@ Black-box methods are the most universal for the planned platform because they a
 3. Compute group-specific word distribution f_o over the reference corpus and f_h^L over the model-generated corpus.
 4. Metric: average Wasserstein distance (Earth Mover's Distance) between distributions W(f_h^L, f_o). A higher mean Wasserstein score indicates greater deviation from the reference and hence stronger bias.
 
-#### 6.3. LLM-as-a-Judge (GPTBIAS)
+#### 6.3. Semantic evaluation
 
-**Concept.** Use a powerful LLM (e.g., GPT‑4) as an evaluator ("judge") to assess outputs of another tested LLM. This method is effective for detecting implicit bias that PPL-based metrics often miss in RLHF models.
-
-**Methodology (sketch).**
-
-1. **Prompt database:** Create a database of "bias attack instructions" — prompts designed to provoke biased responses across bias categories.
-2. The tested LLM produces a response R for an instruction I.
-3. A judge LLM receives a formatted template containing I and R and is asked to produce a structured assessment with metrics:
-   * Binary indicator: Biased? Yes/No (aggregate fraction of 'Yes' indicates bias score).
-   * Categorical label: Detected bias type(s) (allows detection of intersectional bias).
-   * Qualitative fields: Reason and Suggestion for mitigation (for interpretability).
-
-This approach yields high interpretability among black-box methods and is crucial for a platform that must not only measure but also explain bias.
+Not implemented in the current prototype.
 
 ## PART III: REQUIRED DATA SOURCES (THE "DATABASES")
 
@@ -183,15 +172,13 @@ Metrics described above require specific question sets and lexica. An automated 
 ### 7.3. Database type 3: Prompt collections (for black-box metrics)
 
 **Purpose:** Inputs for generative tests.
-**Catalog:** BOLD (23,679 prompts), RealToxicityPrompts (100k prompts), Bias Attack Instructions / GPTBIAS (≈1,800 crafted prompts), BBQ (Bias Benchmark for QA), EquityMedQA (adversarial medical dataset with biased premises).
+**Catalog:** BOLD (23,679 prompts), RealToxicityPrompts (100k prompts), BBQ (Bias Benchmark for QA).
 
 **Table 1: Essential benchmarks for the automated evaluation platform** (summary)
 - CrowS-Pairs — measures stereotyping in 9 categories — PPL-based — requires logits.
 - StereoSet — measures stereotypes intra-/inter-sententially — PPL / CAT — requires logits.
 - BOLD — open-ended demographic prompts — classifier-based — API (text-out).
 - RealToxicityPrompts — toxicity generation — classifier-based — API (text-out).
-- Bias Attack Instructions — implicit bias probes — LLM-as-a-Judge — API (text-out).
-- EquityMedQA — health equity scenarios — LLM-as-a-Judge / human review — API (text-out).
 
 ## PART IV: OPERATIONALIZING AN AUTOMATED EVALUATION PLATFORM
 
@@ -201,7 +188,7 @@ This section synthesizes methods into a coherent design for a prototypical imple
 
 The heterogeneous access levels require a modular architecture:
 
-* **Module 1 — Black-Box API Evaluator:** Connects provider APIs and implements black-box metrics (classifier-based, distributional, LLM-as-a-Judge). Uses prompt databases (type 3).
+* **Module 1 — Black-Box API Evaluator:** Connects provider APIs and implements black-box metrics (classifier-based, distributional). Uses prompt databases (type 3).
 * **Module 2 — White/Grey-Box Local Evaluator:** Connects locally loaded open-source models (e.g., via Hugging Face Transformers) and implements metrics from Parts II (embeddings, logits, generated text) using all database types.
 
 Given fragility in bias metrics (small implementation details can yield large differences), the platform should serve as an **orchestration framework** that wraps validated open-source libraries (e.g., LangFair, Hugging Face evaluate-bias), automates their execution, and standardizes outputs. For continuous evaluation, a relational schema is recommended to store temporal results:
@@ -218,7 +205,7 @@ Aggregating disparate bias metrics into a single scalar ("overall bias") is scie
 
 1. **Profile by bias type:** Vector of scores across bias dimensions (gender, race, etc.).
 2. **Profile by metric type:** Vector comparing robustness across measurement methods (embedding-based, probability-based, generation-based).
-3. **Profile by use case:** Use-case templates (e.g., "medical assistant", "customer service bot") that weight metrics differently according to domain importance (e.g., EquityMedQA should have higher weight in medical use cases).
+3. **Profile by use case:** Use-case templates (e.g., "medical assistant", "customer service bot") that weight metrics differently according to domain importance.
 
 ### 10. Visualization concepts for an automated app
 
@@ -228,23 +215,11 @@ Essential dashboard visualizations:
 2. **Bias evolution (time series):** X-axis date of evaluation; Y-axis chosen bias score (e.g., CrowS-Pairs); line per model to track changes across versions.
 3. **Layer-wise bias analysis (line chart):** For local models: X-axis transformer layer; Y-axis bias score (e.g., PPL) to visualize where bias emerges.
 4. **Distribution comparison (overlaid histograms / density plots):** Reference corpus vs generated corpus; visual discrepancy corresponds to Wasserstein distance.
-5. **Qualitative results table:** For LLM-as-a-Judge: interactive table with Prompt, Model response, Judge verdict (Biased: Yes/No), Detected type, Rationale.
+5. **Qualitative results table:** Interactive table with Prompt and Model response for manual review.
 
 ## PART V: RESEARCH HORIZONS AND META-ANALYSIS (ADVANCED TOPICS)
 
 A robust platform must implement current methods and account for their weaknesses and limits.
-
-### 11. Challenge 1: Bias in the evaluator (LLM-as-a-Judge)
-
-LLM-as-a-Judge is subject to meta-biases:
-
-* **Position bias:** Judges may prefer the response presented first; Judge(A,B) may differ from Judge(B,A).
-* **Superficial quality bias:** Judges may prefer fluent, verbose answers over concise, instruction-faithful ones, misleading assessments toward apparently higher-quality biased outputs.
-
-**Mitigations:**
-
-1. **Balanced position calibration:** For pairwise comparisons, run the judge twice with swapped order and aggregate results (mean or wins) to remove positional effects.
-2. **Contrastive benchmark tests:** Include tests that explicitly trade off superficial quality against instruction fidelity (e.g., LLMBar).
 
 ### 12. Challenge 2: Measuring unanticipated bias
 
@@ -264,10 +239,9 @@ Most benchmarks focus on known bias axes. The platform should also detect *unant
 
 The literature supports a multi-metric, multi-method approach that respects access-level differences. Key takeaways:
 
-1. **Robust metrics:** PPL (grey-box) for stereotyping; Wasserstein distance (black-box) for distributional deviations; binary LLM-as-a-Judge score for implicit generative bias.
-2. **Method comparison:** Black-box methods (especially LLM-as-a-Judge) are most universal and detect implicit bias that RLHF can hide. White/grey-box tests provide diagnostic insight into *where* bias arises but require local access.
-3. **Operationalization:** The platform should orchestrate validated benchmarks (CrowS-Pairs, BOLD, GPTBIAS prompts) across model interfaces and output multi-dimensional bias profiles visualized in radar and time-series charts.
-4. **Critical checks:** Because of judge meta-biases (position and superficial quality bias), LLM-as-a-Judge assessments must implement mitigations such as balanced position calibration.
+1. **Robust metrics:** PPL (grey-box) for stereotyping; Wasserstein distance (black-box) for distributional deviations.
+2. **Method comparison:** Black-box methods are most universal and detect implicit bias that RLHF can hide. White/grey-box tests provide diagnostic insight into *where* bias arises but require local access.
+3. **Operationalization:** The platform should orchestrate validated benchmarks (CrowS-Pairs, BOLD) across model interfaces and output multi-dimensional bias profiles visualized in radar and time-series charts.
 
 ---
 ## 4. Data Flow & Lifecycle

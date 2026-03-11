@@ -56,7 +56,7 @@ Die in der Forschung identifizierten Methoden zur Quantifizierung von Bias lasse
 
 * **Prinzip:** Bewertung der Qualität, Toxizität, des Sentiments oder der stereotypen Natur des generierten Textes.  
 * **Erfordert:** Lediglich API-Zugriff (Text-Input, Text-Output).  
-* **Beispiele:** Klassifikator-basierte Metriken (Toxizität, Sentiment), Verteilungsmetriken (Wasserstein-Distanz), LLM-as-a-Judge (GPTBIAS).
+* **Beispiele:** Klassifikator-basierte Metriken (Toxizität, Sentiment), Verteilungsmetriken (Wasserstein-Distanz).
 
 Eine fundamentale Erkenntnis aus der aktuellen Forschung ist die **schwache oder inkonsistente Korrelation** zwischen intrinsischen Metriken (Ansatz 1 & 2\) und extrinsischen, realen Schäden (Ansatz 3). Modelle, die durch Reinforcement Learning from Human Feedback (RLHF) trainiert wurden, können intrinsische Tests wie CrowS-Pairs oft gut "bestehen", indem sie expliziten Bias maskieren, während impliziter oder generativer Bias (im Black-Box-Szenario) weiterhin vorhanden ist. Für die angestrebte Plattform bedeutet dies, dass ein "Generation-First"-Ansatz (Black-Box) priorisiert werden muss, um aussagekräftige und robuste Ergebnisse zu liefern.
 
@@ -153,20 +153,9 @@ Dies ist der wichtigste und universellste Methodensatz für die geplante Plattfo
 4. **Verteilung [![][image32]](https://www.codecogs.com/eqnedit.php?latex=f_h%5EL%20#0)(Modell):** Dieselbe Verteilung[![][image33]](https://www.codecogs.com/eqnedit.php?latex=%20f_h%5EL#0) wird für den generierten Textkorpus h des LLM L berechnet.  
 5. **Kennzahl: Durchschnittliche Wasserstein-Distanz:** Der Bias des LLM L wird als die durchschnittliche Wasserstein-Distanz (auch Earth Mover's Distance) zwischen den Verteilungen gemessen. Die Wasserstein-Distanz[![][image34]](https://www.codecogs.com/eqnedit.php?latex=%20W\(f_h%5EL%2C%20f_o\)#0) misst, wie viel "Verteilungsmasse" verschoben werden muss, um[![][image35]](https://www.codecogs.com/eqnedit.php?latex=%20f_h%5EL#0) in [![][image36]](https://www.codecogs.com/eqnedit.php?latex=%20f_o#0) zu überführen. Ein höherer [![][image37]](https://www.codecogs.com/eqnedit.php?latex=%5Coverline%7BW%7D%5EL-Score#0) bedeutet eine größere Abweichung von der Referenz und damit einen stärkeren Bias.
 
-#### **6.3. LLM-as-a-Judge (GPTBIAS)**
+#### **6.3. Semantische Bewertung**
 
-**Konzept:** Diese Methode nutzt ein sehr leistungsfähiges LLM (z. B. GPT-4) als "Bewerter" (Judge), um den Output eines anderen, zu testenden LLM zu bewerten. Dieser Ansatz ist besonders effektiv, um *impliziten* Bias zu erkennen, den PPL-Metriken bei RLHF-Modellen oft übersehen.  
-**Methodik:**
-
-1. **Prompt-Datenbank:** Eine spezielle Datenbank mit "Bias Attack Instructions" wird erstellt. Dies sind Prompts, die darauf ausgelegt sind, voreingenommene Antworten in 9 Bias-Kategorien zu provozieren.  
-2. **Generierung:** Das zu testende LLM (z. B. Deepseek) generiert eine Antwort R auf eine "Bias Attack Instruction" I.  
-3. **Bewertung:** Ein "Judge"-LLM (z. B. GPT-4) erhält ein formatiertes Template, das sowohl die Instruktion I als auch die Antwort R enthält.  
-4. **Output & Kennzahlen:** Das Judge-LLM wird angewiesen, eine strukturierte Antwort zu generieren, die mehrere Kennzahlen liefert:  
-   * **Kennzahl 1 (Binär):** Biased: Yes/No (Der aggregierte Prozentsatz von "Yes"-Antworten ist der Gesamt-Bias-Score).  
-   * **Kennzahl 2 (Kategorisch):** Bias Type: (Ermöglicht die Erkennung von *intersektionalem* Bias, wenn mehrere Typen genannt werden).  
-   * **Qualitative Daten (für Interpretierbarkeit):** Reason: und Suggestion: \[Verbesserungsvorschlag\].
-
-Dieser Ansatz bietet die höchste Interpretierbarkeit aller Black-Box-Methoden und ist entscheidend für eine Plattform, die nicht nur messen, sondern auch Erklärungen liefern soll.
+Nicht Teil des aktuellen Prototyps.
 
 ## **TEIL III: ERFORDERLICHE DATENGRUNDLAGEN (DIE "DATENBANKEN")**
 
@@ -195,7 +184,7 @@ Die in Teil II beschriebenen Metriken sind ohne spezifische "Fragensets" und Wor
 * **Katalog der Benchmarks:**  
   * **BOLD (Bias in Open-Ended Language Generation Dataset):** Enthält 23.679 Prompts, die verschiedene Demografien erwähnen, um die Fairness von Open-Ended-Generation zu testen.  
   * **RealToxicityPrompts:** 100.000 Prompts (sowohl toxisch als auch nicht-toxisch), um die Generierung von Toxizität als Reaktion auf verschiedene Kontexte zu messen.  
-  * **Bias Attack Instructions (GPTBIAS):** Eine kuratierte Sammlung von Prompts (1800 in der Studie), die speziell entwickelt wurden, um 9 Typen von implizitem Bias zu "attackieren".  
+  * **Bias Attack Instructions:** Eine kuratierte Sammlung von Prompts (z. B. aus der Literatur), die entwickelt wurden, um impliziten Bias zu testen.  
   * **BBQ (Bias Benchmark for QA):** Ein Frage-Antwort-Datensatz, der Stereotypen in *zweideutigen* Kontexten misst.  
   * **EquityMedQA:** Ein spezialisierter, adversarischer Datensatz für den medizinischen Bereich, der Fragen mit "biased premise" (voreingenommenen Annahmen) enthält, um die Robustheit von Gesundheits-LLMs zu testen.
 
@@ -208,8 +197,8 @@ Die folgende Tabelle fasst die essenziellen Benchmarks zusammen, die als Grundla
 | **StereoSet** | 4 Typen (Stereotypen) | PPL Score / CAT (Grey-Box) | Logits |
 | **BOLD** | Allg. Demografien | Klassifikator-Metriken (Black-Box) | API (Text-Out) |
 | **RealToxicityPrompts** | Toxizität | Toxizitäts-Klassifikator (Black-Box) | API (Text-Out) |
-| **Bias Attack Instructions** | 9 Typen (Implizit) | LLM-as-a-Judge (Black-Box) | API (Text-Out) |
-| **EquityMedQA** | Health Equity | LLM-as-a-Judge / Menschl. (Black-Box) | API (Text-Out) |
+| **Bias Attack Instructions** | 9 Typen (Implizit) | Manuelle/qualitative Auswertung | API (Text-Out) |
+| **EquityMedQA** | Health Equity | Manuelle/qualitative Auswertung | API (Text-Out) |
 
 ## **TEIL IV: OPERATIONALISIERUNG EINER AUTOMATISIERTEN EVALUIERUNGSPLATTFORM**
 
@@ -221,7 +210,7 @@ Die heterogenen Zugriffsebenen (Black-Box vs. White-Box) erfordern zwingend eine
 
 * **Modul 1: Black-Box API-Evaluator:**  
   * **Zweck:** Anbindung von Provider-APIs   
-  * **Funktionalität:** Implementiert *ausschließlich* die Metriken aus Abschnitt 6 (Klassifikator-basiert, Verteilungs-basiert, LLM-as-a-Judge). Nutzt die Prompt-Datenbanken (Typ 3).  
+  * **Funktionalität:** Implementiert *ausschließlich* die Metriken aus Abschnitt 6 (Klassifikator-basiert, Verteilungs-basiert). Nutzt die Prompt-Datenbanken (Typ 3).  
 * **Modul 2: White/Grey-Box Local-Evaluator:**  
   * **Zweck:** Anbindung lokal geladener Open-Source-Modelle (z. B. über Hugging Face Transformers).  
   * **Funktionalität:** Implementiert *alle* Metriken (Abschnitte 4, 5 und 6\) und nutzt *alle* Datenbanktypen (Wortlisten, Kontrafaktische Paare, Prompts).
@@ -261,16 +250,16 @@ Basierend auf den extrahierten Kennzahlen und der Anforderung einer "automated a
    * **Zweck:** Visualisierung der Black-Box-Methode der Verteilungs-Distanz.  
    * **Design:** Zwei überlagerte Histogramme oder Dichte-Plots. Plot 1 (blau): Wortverteilung im Referenzkorpus (z. B. "NYT"). Plot 2 (rot): Wortverteilung im generierten Text des LLM. Die visuelle Diskrepanz zwischen den Kurven *ist* der Bias (quantifiziert durch die Wasserstein-Distanz).  
 5. **Qualitative Ergebnis-Tabelle (Interpretierbarkeit):**  
-   * **Zweck:** Anzeige der hoch-interpretierbaren, qualitativen Ergebnisse der LLM-as-a-Judge-Methode.  
-   * **Design:** Eine interaktive Tabelle mit den Spalten: Prompt (Bias Attack), Modell-Antwort, Bewerter-Urteil (Biased: Yes/No), Erkannter Typ, Begründung (des Judge-LLM).
+   * **Zweck:** Anzeige hoch-interpretierbarer, qualitativer Ergebnisse (manuelle Stichprobenprüfung).  
+   * **Design:** Eine interaktive Tabelle mit den Spalten: Prompt, Modell-Antwort, Notizen/Annotationen.
 
 ## **TEIL V: FORSCHUNGSHORIZONTE UND META-ANALYSE (ADVANCED TOPICS)**
 
 Eine robuste Plattform muss nicht nur aktuelle Methoden implementieren, sondern auch deren inhärente Schwächen und die Grenzen der Forschung berücksichtigen.
 
-### **11\. Herausforderung 1: Bias im Bewerter (LLM-as-a-Judge)**
+### **11\. Herausforderung 1: Meta-Bias in Evaluationsverfahren**
 
-Die fortschrittlichste Black-Box-Methode, LLM-as-a-Judge (Abschnitt 6.3), ist selbst anfällig für "Meta-Bias".
+Fortgeschrittene semantische Evaluationsverfahren können selbst anfällig für "Meta-Bias" sein.
 
 * **Problem 1: Position Bias:** Der "Judge" (z. B. GPT-4) bewertet zwei Antworten (A und B) nicht objektiv. Es besteht eine systematische Tendenz, die Antwort an Position 1 zu bevorzugen. Die Bewertung Judge(A, B) liefert ein anderes Ergebnis als Judge(B, A).  
 * **Problem 2: Superficial Quality Bias:** Der "Judge" bevorzugt "oberflächliche Qualität" (z. B. Ausführlichkeit, Eloquenz, Formalität) gegenüber der eigentlichen *Instruktionstreue* oder *Korrektheit*. Eine lange, eloquent geschriebene, aber voreingenommene Antwort kann fälschlicherweise besser bewertet werden als eine kurze, neutrale, aber korrekte Antwort.
@@ -282,7 +271,7 @@ Die fortschrittlichste Black-Box-Methode, LLM-as-a-Judge (Abschnitt 6.3), ist se
 
 ### **12\. Herausforderung 2: Messung von unvorhergesehenem (Unanticipated) Bias**
 
-Die meisten Metriken (CrowS-Pairs, GPTBIAS) testen nur *bekannte* Bias-Achsen (Gender, Race etc.). Die Plattform sollte jedoch idealerweise auch in der Lage sein, "unanticipated" (unvorhergesehenen) Bias gegen Gruppen zu erkennen, die nicht explizit in den Benchmarks definiert sind.  
+Die meisten Metriken (z. B. CrowS-Pairs) testen nur *bekannte* Bias-Achsen (Gender, Race etc.). Die Plattform sollte jedoch idealerweise auch in der Lage sein, "unanticipated" (unvorhergesehenen) Bias gegen Gruppen zu erkennen, die nicht explizit in den Benchmarks definiert sind.  
 **Lösungsansatz:** Nutzung von **Uncertainty Quantification (UQ)**.
 
 * **Konzept:** Die Hypothese ist, dass LLMs bei Anfragen zu sozialen Gruppen, für die sie nur spärliche oder voreingenommene Daten haben, eine höhere *Unsicherheit* in ihren Vorhersagen zeigen.  
@@ -298,10 +287,9 @@ Die meisten Metriken (CrowS-Pairs, GPTBIAS) testen nur *bekannte* Bias-Achsen (G
 Die rigorose Analyse der Forschungsliteratur liefert ein klares Bild für die Konzeption einer automatisierten Bias-Evaluierungsplattform. Die zentrale Erkenntnis ist, dass ein einzelner "Bias Score" nicht existiert und wissenschaftlich irreführend ist.  
 Eine valide, kontinuierliche Evaluierung erfordert zwingend einen multi-metrischen und multi-methodischen Ansatz, der die unterschiedlichen Zugriffsebenen (White-, Grey-, Black-Box) berücksichtigt.
 
-1. **Kennzahlen und Mathematik:** Die robustesten Kennzahlen sind der **PPL-Score** für Grey-Box-Szenarien (Messung stereotyper Präferenzen) , die **Wasserstein-Distanz** für Black-Box-Vergleiche (Messung der Abweichung von einer Referenz-Verteilung) und der **binäre Score des LLM-as-a-Judge** (Messung von implizitem, generativem Bias).  
-2. **Methoden-Vergleich:** Black-Box-Methoden (insb. LLM-as-a-Judge) sind am universellsten einsetzbar und erfassen impliziten Bias, den RLHF-Modelle sonst verbergen. White-/Grey-Box-Methoden (insb. Logit Lens und Cramér's V ) bieten tiefere diagnostische Einblicke, *wo* Bias entsteht und *wie* er strukturiert ist, sind aber auf Open-Source-Modelle beschränkt.  
-3. **Operationalisierung:** Die Plattform muss als Orchestrierungs-Framework konzipiert werden, das validierte Benchmarks (CrowS-Pairs, BOLD, GPTBIAS-Prompts) gegen verschiedene Modell-Module (API vs. Lokal) ausführt. Die Ergebnisse müssen als multi-dimensionale "Bias-Profile" (visualisiert über Radar-Charts und Zeitreihen) aggregiert werden.  
-4. **Kritische Absicherung:** Aufgrund des nachgewiesenen "Position Bias" und "Superficial Quality Bias" muss jede LLM-as-a-Judge-Bewertung zwingend durch Techniken wie "Balanced Position Calibration" (doppelte Ausführung mit getauschten Positionen) validiert werden.
+1. **Kennzahlen und Mathematik:** Die robustesten Kennzahlen sind der **PPL-Score** für Grey-Box-Szenarien (Messung stereotyper Präferenzen) und die **Wasserstein-Distanz** für Black-Box-Vergleiche (Messung der Abweichung von einer Referenz-Verteilung).  
+2. **Methoden-Vergleich:** Black-Box-Methoden sind am universellsten einsetzbar und erfassen impliziten Bias, den RLHF-Modelle sonst verbergen. White-/Grey-Box-Methoden (insb. Logit Lens und Cramér's V) bieten tiefere diagnostische Einblicke, *wo* Bias entsteht und *wie* er strukturiert ist, sind aber auf Open-Source-Modelle beschränkt.  
+3. **Operationalisierung:** Die Plattform muss als Orchestrierungs-Framework konzipiert werden, das validierte Benchmarks (z. B. CrowS-Pairs, BOLD) gegen verschiedene Modell-Module (API vs. Lokal) ausführt. Die Ergebnisse müssen als multi-dimensionale "Bias-Profile" (visualisiert über Radar-Charts und Zeitreihen) aggregiert werden.
 
 [image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAANBAMAAAAzjdFVAAAAMFBMVEX///8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAv3aB7AAAAD3RSTlMAEM3v3burMomZRCJ2VGaYzhOJAAAAEklEQVR4XmP8z4AOmNAFhqEQAAKbARn/MowcAAAAAElFTkSuQmCC>
 

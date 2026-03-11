@@ -46,7 +46,7 @@ The system consists of two primaryoperational components running in isolated Doc
 
 \* \*\*Features:\*\* \* Runs head-less (without aGUI) and periodically checks the configuration.
 
-  \*Automatically executes the evaluation pipelines (Sentiment, Toxicity,LLM-as-a-Judge) against the configured APIs.
+  \*Automatically executes the evaluation pipelines (Sentiment, Toxicity) against the configured APIs.
 
   \*Appends new measurement points to the results database to track how modelupdates impact fairness over time.
 
@@ -211,7 +211,7 @@ python scheduler.py
 
 \## 4. Tutorial: Running Your First BiasAudit
 
-This section provides an end-to-endwalkthrough demonstrating how to execute a complete bias evaluation utilizingthe platform's Black-Box methodology. The goal of this tutorial is to compare abaseline simulated model against a commercial LLM (e.g., Google Gemini Pro) todetect representational harms.
+This section provides an end-to-end walkthrough demonstrating how to execute a complete bias evaluation utilizing the platform's Black-Box methodology. The goal of this tutorial is to compare two commercial LLMs (e.g., OpenAI GPT-3.5 vs. Google Gemini Pro) to detect representational harms.
 
 \### Step 1: Data Preparation (The PromptTemplate)
 
@@ -239,7 +239,7 @@ Once the microservices are running (viaDocker or locally), orchestrate the evalu
 
 2\. \*\*Upload Dataset:\*\* In the main workingarea under the \*\*"Data Input"\*\* section, drag and drop your prepared\`.csv\` file. The platform will parse the file and display a preview of thestructured prompts.
 
-3\. \*\*Select Target Models:\*\* In theleft-hand configuration sidebar, locate the \*\*Target Models (Compare)\*\*multi-select dropdown. Select \`Simulated-Model\` (our internal baseline withhardcoded bias) and \`Google Gemini Pro\` (or any other configured API).
+3\. \*\*Select Target Models:\*\* In the left-hand configuration sidebar, locate the \*\*Target Models (Compare)\*\* multi-select dropdown. Select \`OpenAI GPT 3.5\` and \`Google Gemini Pro\` (or any other configured API providers).
 
 4\. \*\*Inject Credentials:\*\* If you have notconfigured the \`.env\` file globally, securely input your provider API keys intothe dynamically generated password fields in the sidebar.
 
@@ -265,13 +265,13 @@ Once the execution completes, navigate tothe \*\*"Visualization"\*\* tab to anal
 
 This matrix acts as an immediate diagnostictool (Risk Traffic Light).
 
-\* \*\*High Risk (Red):\*\* You will observe ahigh differential score (e.g., \`> 0.40\`) intersecting the \`Simulated-Model\`and the \`SentimentDiff\` metric. This proves the system successfully detectedthe hardcoded bias.
+\* \*\*High Risk (Red):\*\* You may observe a high differential score (e.g., \`> 0.40\`) for a specific model/metric intersection, indicating statistically significant disparate treatment between groups for the selected test set.
 
 \* \*\*Low Risk (Green):\*\* You will observescores approaching \`0.00\` for commercial models like \`Google Gemini Pro\`,indicating that the model did not exhibit statistically significant disparatetreatment between the demographic groups in this specific test set.
 
 \*\*2. Direct Comparison (Bar Chart)\*\*
 
-This clustered bar chart provides aside-by-side magnitude comparison. It allows researchers to quantify exactlyhow much worse a specific model performs on a given metric compared to itspeers (e.g., visually demonstrating the massive gap between the simulatedbaseline and the production-grade LLM).
+This clustered bar chart provides a side-by-side magnitude comparison. It allows researchers to quantify how much worse a specific model performs on a given metric compared to its peers.
 
 \*\*Data Export:\*\* To integrate thesefindings into external statistical software (e.g., R, SPSS) or your finalresearch report, click \*\*"Download Benchmark Results (CSV)"\*\* toexport the raw, aggregated metric data.
 
@@ -377,11 +377,11 @@ The core evaluationengine is designed to be highly extensible. To integrate a ne
 
 **\* \*\*Resolution:\*\* Streamlit requiresunique identifiers when rendering multiple charts of the same class within thesame DOM scope. Verify that every \`st.plotly\_chart()\` instantiation in\`app\_gui.py\` possesses a unique \`key\` argument (e.g., \`key="barchart\_comparison\_unique"\`).**
 
-**\*\*Q: The LLM-as-a-Judge metric returns\`NaN\` or \`ParseError\`.\*\***
+**\*\*Q: I enabled a metric but see \`NaN\` / missing values.\*\***
 
-**\* \*\*Symptom:\*\* The judge model evaluatesthe text but the platform fails to extract the binary bias score.**
+**\* \*\*Symptom:\*\* A metric column is missing or contains \`NaN\`.**
 
-**\* \*\*Resolution:\*\* The evaluator LLMfailed to return a strictly formatted JSON response. Ensure the judge promptstrongly enforces JSON schema outputs. For OpenAI models, leveraging the\`response\_format={ "type": "json\_object" }\` parameter in\`generators.py\` guarantees valid parsing.**
+**\* \*\*Resolution:\*\* Ensure the selected metric is supported by the running version and that the required dependencies are installed (e.g., `transformers` for Toxicity). Also verify your dataset contains the expected columns (`prompt`, `variable`).**
 
 **\### 7.4. Evaluation & MathematicalDeterminism**
 

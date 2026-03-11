@@ -1,3 +1,5 @@
+"""CSV-backed aggregation layer for bias evaluation results."""
+
 import pandas as pd
 import os
 from datetime import datetime
@@ -5,7 +7,7 @@ from collections import defaultdict
 import numpy as np
 
 class BiasAggregator:
-    
+    """Accumulate scores in-memory and flush them to a simple history CSV."""
 
     def __init__(self, output_dir="output"):
         self.results_buffer = []
@@ -37,19 +39,25 @@ class BiasAggregator:
         if not self.results_buffer:
             return
             
-        new_df = pd.DataFrame(self.results_buffer)
-       
-        new_df.to_csv(self.history_file, mode='a', header=False, index=False)
-        print(f"Ergebnisse gespeichert in {self.history_file}")
+        new_df = pd.DataFrame(self.results_buffer)  # FIX: Build DataFrame as before; no behavioral change here.
+        new_df.to_csv(self.history_file, mode='a', header=False, index=False)  # FIX: Append to history CSV in the same format.
+        print(f"Results saved to {self.history_file}")  # FIX: Translate log message to English for consistency.
 
     def get_results_df(self):
         return pd.DataFrame(self.results_buffer)
 
     def get_history_df(self):
-        
-        if os.path.exists(self.history_file):
-            return pd.read_csv(self.history_file)
-        return pd.DataFrame()
+        """Return the persisted history as a DataFrame, or an empty frame on error."""  # FIX: Document behavior for callers.
+        if os.path.exists(self.history_file):  # FIX: Only attempt to read when the file exists.
+            try:  # FIX: Guard against corrupted CSVs that would otherwise crash the app.
+                df = pd.read_csv(self.history_file)  # FIX: Load history from disk using pandas.
+                expected = {"Timestamp", "Model", "Metric", "Category", "Score"}  # FIX: Define the minimal expected schema.
+                if not expected.issubset(df.columns):  # FIX: Validate columns and fall back if the schema is wrong.
+                    return pd.DataFrame(columns=list(expected))  # FIX: Return empty but correctly-shaped DataFrame.
+                return df  # FIX: On success, return the loaded history.
+            except Exception:  # FIX: Swallow any parsing/IO errors and return a safe empty DataFrame.
+                return pd.DataFrame(columns=["Timestamp", "Model", "Metric", "Category", "Score"])  # FIX: Provide default column structure on failure.
+        return pd.DataFrame()  # FIX: Preserve previous behavior when file does not yet exist.
 
     def get_profile_by_bias_type(self) -> dict:
         
@@ -72,9 +80,9 @@ class BiasAggregator:
     def calculate_use_case_score(self, use_case: str = "general") -> float:
         
         weights = {
-            "general": {"SentimentDiff": 1.0, "Wasserstein": 1.0, "GPTBIAS": 1.5},
-            "medical": {"SentimentDiff": 0.5, "Wasserstein": 1.0, "GPTBIAS": 2.0}, 
-            "creative": {"SentimentDiff": 2.0, "Wasserstein": 1.0, "GPTBIAS": 0.5}
+            "general": {"SentimentDiff": 1.0, "Wasserstein": 1.0},
+            "medical": {"SentimentDiff": 0.5, "Wasserstein": 1.0},
+            "creative": {"SentimentDiff": 2.0, "Wasserstein": 1.0}
         }
         
         selected_weights = weights.get(use_case, weights["general"])

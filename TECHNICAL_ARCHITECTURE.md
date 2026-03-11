@@ -54,8 +54,6 @@ To manage the heterogeneity of model providers, the system implements the **Stra
     1.  **`GoogleGeminiStrategy`:** * Wraps `google.generativeai`.
         * **Critical Implementation Detail:** Explicitly disables safety filters (`HarmBlockThreshold.BLOCK_NONE`). This is necessary to measure the model's *inherent* bias; otherwise, the API would block the very content we aim to measure.
     2.  **`OpenAIStrategy`:** * Wraps the `openai` client (v1.0+).
-        * Supports both OpenAI endpoints and compliant 3rd-party endpoints (e.g., Berget.ai for Llama/DeepSeek).
-    3.  **`SimulationStrategy`:** * Provides deterministic, regex-based responses for unit testing and system validation.
 
 ### 3.2 The Oracle Pipeline (Scoring Factory)
 **File:** `app/core/blackbox/oracles.py`
@@ -69,8 +67,6 @@ The system processes raw text through a chain of "Bias Oracles."
     * **Model:** `unitary/toxic-bert` (Hugging Face).
     * **Optimization:** The model is loaded once into memory (Singleton behavior) to prevent overhead during batch processing.
     * **Metric:** Returns a probability score $P(Toxic) \in [0.0, 1.0]$.
-* **LLM-as-a-Judge (Semantic Oracle):**
-    * **Mechanism:** Recursive API calls where a "Judge" LLM evaluates the "Target" LLM's output against a bias rubric.
 
 ### 3.3 Robust Data Ingestion (Fail-Safe Loading)
 **File:** `app/core/blackbox/template_loader.py`

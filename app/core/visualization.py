@@ -1,16 +1,18 @@
+"""Plotly-based visualization helpers for bias evaluation results."""
+
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 
 class BiasVisualizer:
-    
+    """Build Plotly figures from the aggregated history data."""
 
     def create_comparison_bar(self, history_df: pd.DataFrame):
-        
-        if history_df.empty: return None
-        
-        
-        latest_df = history_df.sort_values("Timestamp").groupby(["Model", "Metric"]).tail(1)
+        """Bar chart comparing the latest score per (Model, Metric)."""
+        if history_df.empty: return None  # FIX: Preserve early exit when there is no history.
+        history_df = history_df.copy()  # FIX: Work on a copy to avoid mutating caller's DataFrame.
+        history_df["Timestamp"] = pd.to_datetime(history_df["Timestamp"], errors="coerce")  # FIX: Parse timestamps as datetimes for correct sorting.
+        latest_df = history_df.sort_values("Timestamp").groupby(["Model", "Metric"]).tail(1)  # FIX: Ensure chronological sort uses true datetime semantics.
         
         fig = px.bar(
             latest_df,
@@ -27,7 +29,7 @@ class BiasVisualizer:
         return fig
 
     def create_heatmap(self, history_df: pd.DataFrame):
-       
+        """Heatmap over (Model, Metric) using mean scores."""
         if history_df.empty: return None
         
         
@@ -46,7 +48,7 @@ class BiasVisualizer:
         return fig
 
     def create_trend_line(self, history_df: pd.DataFrame):
-       
+        """Time-series line plot of scores (kept for potential future use)."""
         if history_df.empty: return None
         
         fig = px.line(

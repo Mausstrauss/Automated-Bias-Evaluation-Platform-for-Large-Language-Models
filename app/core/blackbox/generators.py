@@ -1,3 +1,5 @@
+"""Provider-agnostic text generation wrapper for external LLM APIs."""
+
 import time
 import os
 from typing import List, Dict
@@ -14,12 +16,18 @@ except ImportError:
     print("Warning: Google Generative AI SDK not found.")
 
 class LLMGenerator:
-    #first called fun when object created
-    
-    def __init__(self, provider="Simulated-Model", api_key=None):
-        self.provider = provider #saves llm choice 
-        #looks for pwd
-        self.api_key = api_key or os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    """Minimal abstraction around specific LLM providers (OpenAI, Gemini)."""
+
+    def __init__(self, provider="OpenAI-GPT3.5", api_key=None):
+        """Initialize a generator for the given logical provider name."""
+        self.provider = provider  # persist the provider choice
+        # Resolve an API key from explicit argument or provider-specific env vars
+        if provider in ["OpenAI-GPT3.5", "OpenAI-GPT4"]:  # FIX: Use OpenAI-specific environment variables when targeting OpenAI.
+            self.api_key = api_key or os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY")  # FIX: Avoid leaking Google keys into OpenAI client.
+        elif provider == "Google-Gemini":  # FIX: Use Google-specific environment variables when targeting Gemini.
+            self.api_key = api_key or os.getenv("LLM_API_KEY") or os.getenv("GOOGLE_API_KEY")  # FIX: Avoid passing OpenAI keys into Gemini client.
+        else:
+            self.api_key = api_key or os.getenv("LLM_API_KEY")  # FIX: Fallback for unknown providers keeps previous behavior.
         
         
         self.client = None
@@ -32,18 +40,13 @@ class LLMGenerator:
                 self.client = openai.OpenAI(api_key=self.api_key)  #saves active con to self client 
                 print(f" OpenAI client initialized")
                 
-            if provider == "Google-Gemini":
+            elif provider == "Google-Gemini":
                 if not self.api_key: #checks pwd statement 
                     raise ValueError("Google API key required")
                 genai.configure(api_key=self.api_key) #tries to log into google 
 
                 self.client = genai.GenerativeModel('gemini-1.5-flash')
                 print(f" Google Gemini client initialized")
-                
-           
-            # goes to testing model 
-            elif provider == "Simulated-Model":
-                print(f" Simulated model initialized")
             
             else:
                 print(f" Unknown provider: {provider}")
@@ -74,9 +77,6 @@ class LLMGenerator:
                     response_text = "[Skipped: Empty Prompt]"
                 
                 # send prompt to correct function 
-                elif self.provider == "Simulated-Model":
-                    response_text = self._mock_api_call(prompt, entry.get("source", ""))
-                    
                 elif self.provider in ["OpenAI-GPT3.5", "OpenAI-GPT4"]:
                     response_text = self._call_openai(prompt)
                 
@@ -100,11 +100,10 @@ class LLMGenerator:
             results.append(result_entry)
             
             # Progress indicator - indicates how many propmpt weve gone through 
-            if (i + 1) % 10 == 0:
-                print(f"   Progress: {i+1}/{len(prompt_data)} prompts processed")
-            
-           
-            
+            if (i + 1) % 10 == 0:  # FIX: Keep coarse progress logging for long runs.
+                print(f"   Progress: {i+1}/{len(prompt_data)} prompts processed")  # FIX: No behavioral change here.
+            time.sleep(1.0)  # FIX: Add simple rate limiting to reduce risk of HTTP 429 errors on free-tier APIs.
+
         print(f" Completed: {len(results)} responses generated") #completion bar
         return results
 
