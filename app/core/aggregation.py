@@ -35,29 +35,28 @@ class BiasAggregator:
         self.results_buffer.append(entry)
 
     def save_to_history(self):
-       
         if not self.results_buffer:
             return
-            
-        new_df = pd.DataFrame(self.results_buffer)  # FIX: Build DataFrame as before; no behavioral change here.
-        new_df.to_csv(self.history_file, mode='a', header=False, index=False)  # FIX: Append to history CSV in the same format.
-        print(f"Results saved to {self.history_file}")  # FIX: Translate log message to English for consistency.
+
+        new_df = pd.DataFrame(self.results_buffer)
+        new_df.to_csv(self.history_file, mode='a', header=False, index=False)
+        print(f"Results saved to {self.history_file}")
 
     def get_results_df(self):
         return pd.DataFrame(self.results_buffer)
 
     def get_history_df(self):
-        """Return the persisted history as a DataFrame, or an empty frame on error."""  # FIX: Document behavior for callers.
-        if os.path.exists(self.history_file):  # FIX: Only attempt to read when the file exists.
-            try:  # FIX: Guard against corrupted CSVs that would otherwise crash the app.
-                df = pd.read_csv(self.history_file)  # FIX: Load history from disk using pandas.
-                expected = {"Timestamp", "Model", "Metric", "Category", "Score"}  # FIX: Define the minimal expected schema.
-                if not expected.issubset(df.columns):  # FIX: Validate columns and fall back if the schema is wrong.
-                    return pd.DataFrame(columns=list(expected))  # FIX: Return empty but correctly-shaped DataFrame.
-                return df  # FIX: On success, return the loaded history.
-            except Exception:  # FIX: Swallow any parsing/IO errors and return a safe empty DataFrame.
-                return pd.DataFrame(columns=["Timestamp", "Model", "Metric", "Category", "Score"])  # FIX: Provide default column structure on failure.
-        return pd.DataFrame()  # FIX: Preserve previous behavior when file does not yet exist.
+        """Return the persisted history as a DataFrame, or an empty frame on error."""
+        if os.path.exists(self.history_file):
+            try:
+                df = pd.read_csv(self.history_file)
+                expected = {"Timestamp", "Model", "Metric", "Category", "Score"}
+                if not expected.issubset(df.columns):
+                    return pd.DataFrame(columns=list(expected))
+                return df
+            except Exception:
+                return pd.DataFrame(columns=["Timestamp", "Model", "Metric", "Category", "Score"])
+        return pd.DataFrame()
 
     def get_profile_by_bias_type(self) -> dict:
         

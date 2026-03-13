@@ -9,10 +9,10 @@ class BiasVisualizer:
 
     def create_comparison_bar(self, history_df: pd.DataFrame):
         """Bar chart comparing the latest score per (Model, Metric)."""
-        if history_df.empty: return None  # FIX: Preserve early exit when there is no history.
-        history_df = history_df.copy()  # FIX: Work on a copy to avoid mutating caller's DataFrame.
-        history_df["Timestamp"] = pd.to_datetime(history_df["Timestamp"], errors="coerce")  # FIX: Parse timestamps as datetimes for correct sorting.
-        latest_df = history_df.sort_values("Timestamp").groupby(["Model", "Metric"]).tail(1)  # FIX: Ensure chronological sort uses true datetime semantics.
+        if history_df.empty: return None  # Preserve early exit when there is no history.
+        history_df = history_df.copy()  # Work on a copy to avoid mutating caller's DataFrame.
+        history_df["Timestamp"] = pd.to_datetime(history_df["Timestamp"], errors="coerce")  # Parse timestamps as datetimes for correct sorting.
+        latest_df = history_df.sort_values("Timestamp").groupby(["Model", "Metric"]).tail(1)  # Ensure chronological sort uses true datetime semantics.
         
         fig = px.bar(
             latest_df,

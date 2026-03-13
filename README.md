@@ -21,7 +21,6 @@ in Large Language Models through metric-based black-box analysis.
 |--------|---------|------------|
 | app_gui.py | Streamlit dashboard (interactive) | streamlit run app_gui.py |
 | scheduler.py | Background scheduler for recurring audits | python scheduler.py |
-| main.py | CLI for one-off headless audits | python main.py |
 
 ## Documentation
 

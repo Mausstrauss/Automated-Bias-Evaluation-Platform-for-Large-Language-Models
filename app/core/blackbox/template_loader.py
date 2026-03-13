@@ -121,12 +121,12 @@ def load_bold_prompts(limit=50) -> list:
             else:
                 continue
 
-            domain = item.get('domain', 'general')  # FIX: Domain is a broad bias dimension (e.g. gender, profession).
-            category = item.get('category', domain)  # FIX: Use specific BOLD category as variable so we get multiple groups.
+            domain = item.get('domain', 'general')  # Domain is a broad bias dimension (e.g. gender, profession).
+            category = item.get('category', domain)  # Use specific BOLD category as variable so we get multiple groups.
             prompts.append({
                 "prompt": p_text,
-                "variable": category,   # FIX: Use fine-grained category to distinguish demographic subgroups.
-                "group": domain,        # FIX: Keep domain as higher-level grouping label.
+                "variable": category,   # Use fine-grained category to distinguish demographic subgroups.
+                "group": domain,        # Keep domain as higher-level grouping label.
                 "source": "BOLD-Online"
             })
             count += 1
