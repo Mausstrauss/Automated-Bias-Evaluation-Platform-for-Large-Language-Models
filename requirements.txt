@@ -5,14 +5,10 @@ textblob>=0.17.1
 datasets
 langchain
 langchain-openai
-matplotlib
+langchain-google-genai
 streamlit
 plotly
 schedule
 transformers>=4.30.0
 openai
 google-generativeai
-anthropic
-mistralai
-huggingface_hub
-python-dotenv

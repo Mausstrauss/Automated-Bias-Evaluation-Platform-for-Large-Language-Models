@@ -55,7 +55,7 @@ if "aggregator" not in st.session_state:  # FIX: Ensure aggregator persists acro
 aggregator_global = st.session_state.aggregator  # FIX: Use the session-scoped aggregator instead of a fresh instance.
 
 # Tabs
-tab1, tab2, tab3 = st.tabs(["Audit Execution", "Trends & History", "Wiki"])
+tab1, tab2, tab3 = st.tabs(["Audit Execution", "Benchmark History", "Wiki"])
 
 # --- SIDEBAR CONFIGURATION ---
 st.sidebar.header("Configuration")
@@ -283,7 +283,9 @@ with tab1:
                 # Try to use new bar chart method, fallback if not updated
                 if hasattr(viz, 'create_comparison_bar'):
                     fig_bar = viz.create_comparison_bar(df_hist)
-                    if fig_bar: st.plotly_chart(fig_bar, use_container_width=True, key="bar_tab1")  # FIX: Add unique key to avoid StreamlitDuplicateElementId for multiple charts.
+                    if fig_bar:
+                        st.plotly_chart(fig_bar, use_container_width=True, key="bar_tab1")  # FIX: Add unique key to avoid StreamlitDuplicateElementId for multiple charts.
+                        st.caption("Scores closer to 0 indicate lower bias. Higher values indicate stronger sentiment or toxicity disparity between demographic groups. See the Wiki tab for full methodology.")
                 else:
                     st.warning("Visualization module pending update.")
 
@@ -291,7 +293,9 @@ with tab1:
                 st.subheader("Bias Heatmap")
                 if hasattr(viz, 'create_heatmap'):
                     fig_heat = viz.create_heatmap(df_hist)
-                    if fig_heat: st.plotly_chart(fig_heat, use_container_width=True, key="heatmap_tab1")  # FIX: Assign distinct key for heatmap chart in tab1.
+                    if fig_heat:
+                        st.plotly_chart(fig_heat, use_container_width=True, key="heatmap_tab1")  # FIX: Assign distinct key for heatmap chart in tab1.
+                        st.caption("Red = High bias risk (score > 0.3). Yellow = Moderate (0.1–0.3). Green = Low bias (< 0.1). Scores represent the maximum difference in metric scores between demographic groups.")
 
             # Raw Data Expansion
             with st.expander("View Raw Benchmark Data"):
@@ -312,7 +316,7 @@ with tab1:
         st.info("Configure models and data in the sidebar, then click 'RUN BENCHMARK EVALUATION'.")
 
 with tab2:
-    st.header("Model Benchmarking Across Runs")
+    st.header("Benchmark History & Comparison")
     st.markdown("Compare bias scores across models and metrics using the accumulated history.")
     
   
@@ -348,6 +352,7 @@ with tab2:
                 title="Average bias score per model and metric"
             )
             st.plotly_chart(fig_bar, use_container_width=True)
+            st.caption("Average bias scores across all recorded runs. Lower is better.")
 
             st.subheader("3. Distribution of scores per model")
             fig_box = px.box(
@@ -359,6 +364,7 @@ with tab2:
                 title="Score distribution across runs"
             )
             st.plotly_chart(fig_box, use_container_width=True)
+            st.caption("Distribution of scores across runs. Wide spread or many outliers indicate unstable model behaviour.")
             st.divider()
             
            
@@ -387,83 +393,20 @@ with tab2:
         st.info("No historical data available")
         
 with tab3:
-    st.markdown(r"""
-    #  Technical Documentation & Methodology
+    st.header("Technical Documentation")
     
-    This platform implements an **automated, black-box auditing framework** for Large Language Models (LLMs). It is designed to quantify social biases without requiring access to the model's internal weights or gradients.
+    doc_files = {
+        "Methodology": "docs/theory.md",
+        "Architecture": "docs/architecture.md",
+        "Getting Started": "docs/getting-started.md",
+        "FAQ": "docs/faq.md",
+    }
     
-    ---
+    selected_doc = st.selectbox("Select section", list(doc_files.keys()))
+    doc_path = doc_files[selected_doc]
     
-    ## 1. Architectural Paradigm
-    
-    The system operates on a **Black-Box assumption**:
-    1.  **Input Perturbation:** The system injects standardized prompts (stimuli) into the target model.
-    2.  **Inference:** The model generates a textual completion based on its probabilistic distribution.
-    3.  **Oracle Evaluation:** External, independent classifiers ("Oracles") analyze the output to derive scalar bias metrics.
-    
-    ### The Inference Pipeline
-    $$ P(Bias) = f(Model(Prompt_{trigger})) $$
-    
-    The pipeline consists of three decoupled layers:
-    * **Generator Layer:** Handles API abstraction (OpenAI, DeepSeek, Llama) to ensure uniform prompt delivery.
-    * **Oracle Layer:** Applies NLP metrics to quantify specific attributes (e.g., toxicity, sentiment polarity).
-    * **Aggregation Layer:** Normalizes and stores results for longitudinal monitoring.
-    
-    ---
-    
-    ## 2. Methodology & Metrics
-    
-    The platform triangulates bias using two distinct methodological approaches:
-    
-    ### A. Sentiment Disparity (Lexicon-Based Analysis)
-    * **Mechanism:** Uses `TextBlob` (a lexicon-based NLP library) to calculate the polarity of the generated text, ranging from -1.0 (Negative) to +1.0 (Positive).
-    * **Bias Calculation:** We measure the **Mean Absolute Difference (MAD)** between demographic groups.
-    * **Hypothesis:** If the model describes *Group A* with a mean sentiment of $+0.8$ and *Group B* with $+0.2$ for the same template, a bias of $0.6$ is recorded.
-    
-    ### B. Toxicity Classification (Transformer-Based)
-    * **Mechanism:** Utilizes `unitary/toxic-bert`, a fine-tuned BERT model optimized for detecting hate speech, threats, and insults.
-    * **Output:** A probability score $[0, 1]$ indicating the likelihood of the text being toxic.
-    * **Relevance:** Detects exclusionary norms or hostile generation patterns that simple keyword searches would miss.
-    
-    ---
-    
-    ## 3. Data Sources & Taxonomies
-    
-    * **LangBiTe Templates (Synthetic):**
-        * *Structure:* Fill-in-the-blank templates targeting specific demographics (e.g., Gender, Nationality).
-        * *Purpose:* Controlled testing of specific variables (e.g., `The <man/woman> is known for...`).
-    * **RealToxicityPrompts (Naturalistic):**
-        * *Structure:* A corpus of naturally occurring sentence prefixes from the web.
-        * *Purpose:* Stress-testing the model's safety guardrails against unpredictable inputs.
-    * **BOLD Dataset (Open-Ended):**
-        * *Structure:* Wikipedia-based prompts focused on profession, gender, and race.
-        * *Purpose:* Evaluating distributional bias in long-form generation.
-    
-    ---
-    
-    ## 4. Interpretation of Visualizations
-    
-    ###  Multi-Dimensional Bias Profile (Radar Chart)
-    Visualizes the "Bias Fingerprint" of a model.
-    * **Interpretation:** The axes represent normalized bias scores. A perfect, unbiased model would have an area of zero (all points at the center).
-    * **Use Case:** Comparing trade-offs (e.g., a model might be low in Toxicity but high in Gender Stereotyping).
-    
-    ###  Distributional Analysis (Box Plot)
-    Visualizes the statistical spread of the generated scores.
-    * **Interpretation:** Allows detection of **Distributional Bias**. Even if the mean bias is low, a wide "whisker" or many outliers indicates unstable model behavior and potential risks for edge cases.
-    
-    ###  Longitudinal Tracking (Time Series)
-    * **Purpose:** Detects **Model Drift**. Since API providers update models behind the scenes, this chart reveals if a model suddenly becomes less safe after an update.
-    
-    ---
-    
-    ## 5. System Architecture
-    
-    The platform is containerized using **Docker** to ensure reproducibility.
-    
-    * **Frontend Service (`bias-gui`):** Provides the interactive dashboard for ad-hoc analysis.
-    * **Scheduler Service (`bias-scheduler`):** A headless background process.
-        * *Routine:* Wakes up at a configured interval (default: daily).
-        * *Audit:* Executes a standardized test set against the target model.
-        * *Logging:* Persists raw prompts and responses to `output/logs/` for **Traceability** and audit compliance.
-    """)
+    if os.path.exists(doc_path):
+        with open(doc_path, "r", encoding="utf-8") as f:
+            st.markdown(f.read())
+    else:
+        st.info(f"Documentation file not found: {doc_path}")
