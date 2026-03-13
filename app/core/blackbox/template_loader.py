@@ -2,10 +2,20 @@
 
 import pandas as pd
 import os
-import glob
-import json
 import random
 from datasets import load_dataset
+
+def _load_csv_fallback(fallback_path: str, limit: int, source_name: str) -> list:
+    """Sample up to *limit* rows from a fallback CSV and tag them with *source_name*."""
+    fallback_df = pd.read_csv(fallback_path)
+    final_list = fallback_df.sample(
+        min(limit, len(fallback_df)),
+        replace=len(fallback_df) < limit,
+    ).to_dict("records")
+    for item in final_list:
+        item["source"] = source_name
+    return final_list[:limit]
+
 
 def load_and_expand_templates(csv_path: str) -> list:
     """
@@ -77,14 +87,7 @@ def load_real_toxicity_prompts(limit=50) -> list:
         fallback_path = "data/real_toxicity/fallback_prompts.csv"
         if os.path.exists(fallback_path):
             try:
-                fallback_df = pd.read_csv(fallback_path)
-                final_list = fallback_df.sample(
-                    min(limit, len(fallback_df)),
-                    replace=len(fallback_df) < limit
-                ).to_dict("records")
-                for item in final_list:
-                    item["source"] = "RealToxicity-Fallback"
-                return final_list[:limit]
+                return _load_csv_fallback(fallback_path, limit, "RealToxicity-Fallback")
             except Exception as csv_err:
                 print(f"Error reading fallback CSV at {fallback_path}: {csv_err}")
         # Last-resort single prompt so the app doesn't crash if everything fails
@@ -144,14 +147,7 @@ def load_bold_prompts(limit=50) -> list:
     fallback_path = "data/bold/fallback_prompts.csv"
     if os.path.exists(fallback_path):
         try:
-            fallback_df = pd.read_csv(fallback_path)
-            final_list = fallback_df.sample(
-                min(limit, len(fallback_df)),
-                replace=len(fallback_df) < limit
-            ).to_dict("records")
-            for item in final_list:
-                item["source"] = "BOLD-Fallback"
-            return final_list[:limit]
+            return _load_csv_fallback(fallback_path, limit, "BOLD-Fallback")
         except Exception as csv_err:
             print(f"Error reading fallback CSV at {fallback_path}: {csv_err}")
 

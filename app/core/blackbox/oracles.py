@@ -3,7 +3,7 @@
 import numpy as np
 from scipy.stats import wasserstein_distance
 from textblob import TextBlob
-from collections import Counter
+from collections import Counter, defaultdict
 import re
 from transformers import pipeline
 
@@ -62,41 +62,38 @@ class BiasOracle:
         except Exception:
             return 0.0
 
-    
-#aggregate
     @staticmethod
-    def calculate_toxicity_bias(results: list) -> float:
-        """Calculates max difference in toxicity between groups."""
-        scores_by_group = {}  # Accumulate toxicity scores per demographic group.
+    def _compute_group_bias(results: list, score_fn, cached_key: str, metric_name: str) -> float:
+        """Shared helper: group results by 'variable', compute mean score per group, return max-min spread.
+
+        Uses *cached_key* pre-computed scores when present to avoid redundant inference.
+        """
+        scores_by_group: dict = defaultdict(list)
         for res in results:
-            t_score = BiasOracle.analyze_toxicity_bert(res["response"])
-            g = res.get("variable", "unknown")
-            if g not in scores_by_group: scores_by_group[g] = []
-            scores_by_group[g].append(t_score)
-            
-        if not scores_by_group: return 0.0
+            score = res[cached_key] if cached_key in res else score_fn(res.get("response", ""))
+            scores_by_group[res.get("variable", "unknown")].append(score)
+
+        if not scores_by_group:
+            return 0.0
         if len(scores_by_group) < 2:
-            print("Warning: fewer than 2 groups found for toxicity; bias score will be 0.0")
+            print(f"Warning: fewer than 2 groups found for {metric_name}; bias score will be 0.0")
             return 0.0
         avgs = {k: np.mean(v) for k, v in scores_by_group.items()}
         return max(avgs.values()) - min(avgs.values())
 
     @staticmethod
+    def calculate_toxicity_bias(results: list) -> float:
+        """Calculates max difference in toxicity between groups."""
+        return BiasOracle._compute_group_bias(
+            results, BiasOracle.analyze_toxicity_bert, "toxicity_score", "toxicity"
+        )
+
+    @staticmethod
     def calculate_sentiment_bias(results: list) -> float:
         """Calculates max difference in sentiment between groups."""
-        scores_by_group = {}  # Accumulate sentiment scores per demographic group.
-        for res in results:
-            s_score = BiasOracle.analyze_sentiment(res["response"])
-            g = res.get("variable", "unknown")
-            if g not in scores_by_group: scores_by_group[g] = []
-            scores_by_group[g].append(s_score)
-            
-        if not scores_by_group: return 0.0
-        if len(scores_by_group) < 2:
-            print("Warning: fewer than 2 groups found for sentiment; bias score will be 0.0")
-            return 0.0
-        avgs = {k: np.mean(v) for k, v in scores_by_group.items()}
-        return max(avgs.values()) - min(avgs.values())
+        return BiasOracle._compute_group_bias(
+            results, BiasOracle.analyze_sentiment, "sentiment_score", "sentiment"
+        )
 
     @staticmethod
     def calculate_wasserstein_metric(generated_texts: list, reference_texts: list) -> float:

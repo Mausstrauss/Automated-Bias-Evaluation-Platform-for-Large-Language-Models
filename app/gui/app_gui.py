@@ -21,6 +21,7 @@ from app.core.blackbox.template_loader import (
 )
 from app.core.aggregation import BiasAggregator
 from app.core.visualization import BiasVisualizer
+from app.config import MODEL_MAPPING
 
 
 def classify_bias_score(score):
@@ -70,11 +71,6 @@ def main():
     st.sidebar.header("Configuration")
 
     # 1. MODEL SELECTION (Now Multi-Select for Benchmarking)
-    MODEL_MAPPING = {
-        "OpenAI GPT 3.5": "OpenAI-GPT3.5",
-        "Google Gemini Pro": "Google-Gemini",
-    }
-
     selected_labels = st.sidebar.multiselect(
         "1. Target Models (Compare)",
         list(MODEL_MAPPING.keys()),
@@ -312,45 +308,39 @@ def main():
 
                 with col1:
                     st.subheader("Direct Comparison")
-                    # Try to use new bar chart method, fallback if not updated
-                    if hasattr(viz, "create_comparison_bar"):
-                        fig_bar = viz.create_comparison_bar(df_hist)
-                        if fig_bar:
-                            st.plotly_chart(
-                                fig_bar,
-                                use_container_width=True,
-                                key="bar_tab1",
-                            )
-                            st.caption(
-                                "Scores closer to 0 indicate lower bias. Higher values indicate stronger sentiment or toxicity disparity between demographic groups. See the Wiki tab for full methodology."
-                            )
-                    else:
-                        st.warning("Visualization module pending update.")
+                    fig_bar = viz.create_comparison_bar(df_hist)
+                    if fig_bar:
+                        st.plotly_chart(
+                            fig_bar,
+                            use_container_width=True,
+                            key="bar_tab1",
+                        )
+                        st.caption(
+                            "Scores closer to 0 indicate lower bias. Higher values indicate stronger sentiment or toxicity disparity between demographic groups. See the Wiki tab for full methodology."
+                        )
 
                 with col2:
                     st.subheader("Bias Heatmap")
-                    if hasattr(viz, "create_heatmap"):
-                        fig_heat = viz.create_heatmap(df_hist)
-                        if fig_heat:
-                            st.plotly_chart(
-                                fig_heat,
-                                use_container_width=True,
-                                key="heatmap_tab1",
-                            )
-                            st.caption(
-                                "Red = High bias risk (score > 0.3). Yellow = Moderate (0.1–0.3). Green = Low bias (< 0.1). Scores represent the maximum difference in metric scores between demographic groups."
-                            )
+                    fig_heat = viz.create_heatmap(df_hist)
+                    if fig_heat:
+                        st.plotly_chart(
+                            fig_heat,
+                            use_container_width=True,
+                            key="heatmap_tab1",
+                        )
+                        st.caption(
+                            "Red = High bias risk (score > 0.3). Yellow = Moderate (0.1–0.3). Green = Low bias (< 0.1). Scores represent the maximum difference in metric scores between demographic groups."
+                        )
 
                 # Raw Data Expansion
+                all_raw_df = pd.DataFrame(all_raw_results)
                 with st.expander("View Raw Benchmark Data"):
-                    st.dataframe(
-                        pd.DataFrame(all_raw_results), use_container_width=True
-                    )
+                    st.dataframe(all_raw_df, use_container_width=True)
 
                 # Download
                 st.download_button(
                     "Download Benchmark Results (CSV)",
-                    data=pd.DataFrame(all_raw_results).to_csv(index=False),
+                    data=all_raw_df.to_csv(index=False),
                     file_name=f"benchmark_results_{int(time.time())}.csv",
                     mime="text/csv",
                 )

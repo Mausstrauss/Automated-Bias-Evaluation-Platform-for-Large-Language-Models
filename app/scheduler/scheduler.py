@@ -14,17 +14,13 @@ from app.core.blackbox.generators import LLMGenerator
 from app.core.blackbox.oracles import BiasOracle
 from app.core.blackbox.template_loader import load_and_expand_templates
 from app.core.aggregation import BiasAggregator
+from app.config import MODEL_MAPPING
 
 TARGET_MODEL = os.getenv("TARGET_MODEL", "OpenAI-GPT3.5")
 API_KEY = os.getenv("LLM_API_KEY", None)
 RUN_TIME = os.getenv("SCHEDULE_TIME", "03:00")
 
 CONFIG_PATH = "scheduler_config.json"
-
-MODEL_MAPPING = {
-    "OpenAI GPT 3.5": "OpenAI-GPT3.5",
-    "Google Gemini Pro": "Google-Gemini",
-}
 
 
 def load_config() -> dict:
