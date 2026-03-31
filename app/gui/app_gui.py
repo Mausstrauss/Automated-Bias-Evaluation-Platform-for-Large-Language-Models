@@ -322,7 +322,9 @@ def main():
                                 key="bar_tab1",
                             )
                             st.caption(
-                                "Scores closer to 0 indicate lower bias. Higher values indicate stronger sentiment or toxicity disparity between demographic groups. See the Wiki tab for full methodology."
+                                "Scores closer to 0 indicate lower bias. Higher values indicate stronger "
+                                "sentiment or toxicity disparity between demographic groups. "
+                                "Scores above 0.3 are considered high risk. See the Methodology section in the Wiki tab for full details."
                             )
                     else:
                         st.warning("Visualization module pending update.")
@@ -408,8 +410,11 @@ def main():
                     barmode="group",
                     title="Average bias score per model and metric",
                 )
-                st.plotly_chart(fig_bar, use_container_width=True)
-                st.caption("Average bias scores across all recorded runs. Lower is better.")
+                st.plotly_chart(fig_bar, use_container_width=True, key="bar_tab2")
+                st.caption(
+                    "Average bias scores across all recorded runs. Lower is better. "
+                    "A score of 0.0 means no measurable disparity between groups was detected."
+                )
 
                 st.subheader("3. Distribution of scores per model")
                 fig_box = px.box(
@@ -420,9 +425,10 @@ def main():
                     points="outliers",
                     title="Score distribution across runs",
                 )
-                st.plotly_chart(fig_box, use_container_width=True)
+                st.plotly_chart(fig_box, use_container_width=True, key="box_tab2")
                 st.caption(
-                    "Distribution of scores across runs. Wide spread or many outliers indicate unstable model behaviour."
+                    "Distribution of scores across all runs. The box shows the interquartile range (25th–75th percentile). "
+                    "Wide spread or many outliers indicate unstable model behaviour across different prompts."
                 )
                 st.divider()
 
@@ -434,7 +440,7 @@ def main():
                         st.plotly_chart(
                             fig_heat,
                             use_container_width=True,
-                            key="heatmap_global_summary",
+                            key="heatmap_tab2",
                         )
 
             else:
@@ -463,6 +469,7 @@ def main():
             "Methodology": "docs/theory.md",
             "Architecture": "docs/architecture.md",
             "Getting Started": "docs/getting-started.md",
+            "API & Extensibility": "docs/api.md",
             "FAQ": "docs/faq.md",
         }
 

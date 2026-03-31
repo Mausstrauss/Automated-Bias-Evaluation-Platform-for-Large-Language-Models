@@ -243,3 +243,6 @@ The literature supports a multi-metric, multi-method approach that respects acce
 2. **Method comparison:** Black-box methods are most universal and detect implicit bias that RLHF can hide. White/grey-box tests provide diagnostic insight into *where* bias arises but require local access.
 3. **Operationalization:** The platform should orchestrate validated benchmarks (CrowS-Pairs, BOLD) across model interfaces and output multi-dimensional bias profiles visualized in radar and time-series charts.
 
+## Relationship to LangBiTe
+
+This platform uses prompt templates in the style of the [LangBiTe project](https://github.com/SoFia-1023/LangBiTe) (Language Bias Testing). LangBiTe defines a CSV format for parameterised bias test prompts. The templates in `data/word_lists/prompts/langbite_templates.csv` follow this format: each row defines a template string with a placeholder (e.g. `<gender>`), a variable type, and a pipe-separated list of values to substitute. This platform is independent of the LangBiTe codebase — it borrows only the CSV template format, not any LangBiTe code or model.

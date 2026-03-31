@@ -10,7 +10,7 @@ from langchain_core.messages import HumanMessage
 PROVIDER_CONFIG = {
     "OpenAI-GPT3.5": {"model": "gpt-3.5-turbo", "provider": "openai"},
     "OpenAI-GPT4":   {"model": "gpt-4o",         "provider": "openai"},
-   "Google-Gemini": {"model": "gemini-2.5-flash", "provider": "google_genai"},
+   "Google-Gemini": {"model": "gemini-2.0-flash", "provider": "google_genai"},
 }
 
 class LLMGenerator:

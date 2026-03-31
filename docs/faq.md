@@ -14,8 +14,8 @@ This section addresses common orchestration, data parsing, and runtime anomalies
 **Q: How do I manage and limit the API costs incurred by the continuous scheduler?**
 
 * **Symptom:** The platform runs continuously, potentially generating high API billing costs over time.
-* **Resolution:** The `scheduler.py` is designed for continuous benchmark history auditing. If you set `interval_minutes` too low (e.g., every 5 minutes) across thousands of prompts, costs will scale rapidly.
-  1. For testing, set the scheduler to run infrequently (e.g., `1440` minutes / 24 hours) or disable the `scheduler_active` flag in the GUI when not actively tracking drift.
+* **Resolution:** The `scheduler.py` is designed for continuous benchmark history auditing. If you set `interval_hours` too low (e.g., every 1 hour) across thousands of prompts, costs will scale rapidly.
+  1. For testing, set the scheduler to run infrequently (e.g., `24` hours) or disable the `active` flag in the GUI when not actively tracking drift.
   2. Monitor costs directly via your respective provider dashboards (e.g., OpenAI Platform billing).
 
 ## 7.2. Environment & Docker Configurations
@@ -42,7 +42,7 @@ This section addresses common orchestration, data parsing, and runtime anomalies
 * **Symptom:** The GUI crashes immediately upon uploading the `.csv` dataset.
 * **Resolution:**
   1. **Encoding:** The CSV must be strictly encoded in `UTF-8`. (Avoid standard Excel CSV exports; use "CSV UTF-8".)
-  2. **Headers:** The parsing engine enforces strict schema validation. The first row must exactly contain the headers: `prompt`, `bias_type`, and `target_group`.
+  2. **Headers:** The parsing engine enforces strict schema validation. The first row must exactly contain the headers: `prompt`, `variable`, and `group`.
 
 **Q: The Streamlit GUI throws a `StreamlitDuplicateElementId` error.**
 

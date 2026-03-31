@@ -43,13 +43,13 @@ The system manages data through two distinct lifecycles depending on the trigger
 
 This flow is optimized for real-time feedback and data exploration.
 
-1. **User Trigger:** Researcher configures parameters (e.g., *Gemini 1.5*, *BOLD Dataset*) and clicks "RUN EVALUATION".
+1. **User Trigger:** Researcher configures parameters (e.g., *Gemini 2.0 Flash*, *BOLD Dataset*) and clicks "RUN EVALUATION".
 2. **Template Expansion:** The `template_loader.py` reads the source (CSV or HuggingFace stream) and standardizes it into a `List[Dict]` format.
 3. **Batch Inference:** The `LLMGenerator` iterates through prompts.
    * *Rate Limiting:* A dynamic sleep timer (`time.sleep(1.0)`) is applied to prevent HTTP 429 (Too Many Requests) errors on free-tier APIs.
 4. **Scoring Pipeline:** Raw responses are passed to the static methods of `BiasOracle`.
 5. **In-Memory Aggregation:** Results are converted to a Pandas DataFrame for immediate rendering.
-6. **Visualization:** `BiasVisualizer` generates Plotly JSON objects (radar charts, box plots) which are rendered by Streamlit's frontend engine.
+6. **Visualization:** `BiasVisualizer` generates Plotly JSON objects (bar charts and heatmaps) which are rendered by Streamlit's frontend engine.
 
 ### 4.2 Scheduler Flow (Asynchronous / Benchmark History Audit)
 
@@ -70,7 +70,6 @@ This flow is optimized for reliability and data persistence.
 
 * **Ephemeral Storage:** API keys (Google, OpenAI) are injected via environment variables (`.env`) or temporary session state in the GUI.
 * **No Disk Writes:** Keys are **never** serialized to disk or included in logs.
-* **Safety Settings Override:** The system explicitly disables safety filters (`BLOCK_NONE`) on Google Gemini. This is a deliberate architectural decision required to measure the model's *intrinsic* bias rather than its safety filter's efficacy.
 
 ### 5.2 Resource & Network Constraints
 
@@ -96,7 +95,7 @@ To assist with auditing and extension, the project structure follows a strict se
 │   │   ├── generators.py       # Strategy pattern for LLM APIs
 │   │   ├── oracles.py          # Scoring logic (sentiment/toxicity)
 │   │   ├── template_loader.py  # Data ingestion (CSV/HuggingFace)
-│   │   └── visualizer.py       # Plotly graphing logic
+│   │   └── visualization.py    # Plotly graphing logic
 ├── data/
 │   ├── templates/              # LangBiTe CSV templates
 │   └── bold/                   # Fallback data for BOLD dataset

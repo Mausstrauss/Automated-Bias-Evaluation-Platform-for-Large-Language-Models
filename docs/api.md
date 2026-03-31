@@ -12,10 +12,11 @@ This JSON file acts as the configuration API payload sent from the GUI to the sc
 
 ```json
 {
-  "scheduler_active": true,
-  "interval_minutes": 1440,
-  "target_models": ["OpenAI-GPT3.5", "Google-Gemini"],
-  "dataset_path": "./data/custom_prompts.csv"
+  "active": true,
+  "interval_hours": 24,
+  "models": ["OpenAI GPT 3.5", "Google Gemini Pro"],
+  "metrics": ["Sentiment Analysis", "Toxicity Check"],
+  "dataset": "Gender Templates"
 }
 ```
 
@@ -27,4 +28,5 @@ The core evaluation engine is designed to be highly extensible. To integrate a n
 2. **Implement the generation method.** Add or configure the provider mapping so that prompts are correctly routed to the new model (e.g., via LangChain model initialization).
 3. **Register the provider.** Map the new provider string in the main `PROVIDER_CONFIG` mapping and ensure `generate_batch()` supports it.
 4. **Update the GUI.** Add the new model label to the `MODEL_MAPPING` dictionary in the `app_gui.py` sidebar configuration so users can select it.
+5. **Update the scheduler.** Add the same new model label to the `MODEL_MAPPING` dictionary in `scheduler.py` (the root shim delegates to `app/scheduler/scheduler.py`). Without this step, the background scheduler cannot run the new model even after the GUI can.
 
