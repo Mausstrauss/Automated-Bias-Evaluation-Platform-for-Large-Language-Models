@@ -21,6 +21,27 @@ in Large Language Models through metric-based black-box analysis.
 |--------|---------|------------|
 | app_gui.py | Streamlit dashboard (interactive) | streamlit run app_gui.py |
 | scheduler.py | Background scheduler for recurring audits | python scheduler.py |
+| main.py | CLI one-off audit (no GUI) | python main.py |
+
+## Directory Structure
+
+```
+├── app/
+│   ├── core/           # Oracles, aggregation, visualization
+│   ├── gui/
+│   │   ├── app_gui.py  # Streamlit dashboard
+│   │   └── utils.py    # Pure-Python GUI helpers (classify_bias_score)
+│   └── scheduler/      # Headless recurring audit service
+├── data/               # Prompt templates and fallback datasets
+├── docs/               # Full documentation
+├── tests/              # pytest test suite (93 tests)
+│   ├── conftest.py
+│   ├── unit/
+│   └── integration/
+├── output/             # Generated CSV history and audit logs
+├── pytest.ini          # Test configuration
+└── requirements.txt
+```
 
 ## Documentation
 

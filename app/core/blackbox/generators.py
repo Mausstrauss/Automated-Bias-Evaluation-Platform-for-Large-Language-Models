@@ -4,23 +4,32 @@ import time
 import os
 from typing import List, Dict
 from langchain.chat_models import init_chat_model
-from langchain_core.messages import HumanMessage
 
-# Map internal provider IDs to LangChain model strings and providers
 PROVIDER_CONFIG = {
-    "OpenAI-GPT3.5": {"model": "gpt-3.5-turbo", "provider": "openai"},
-    "OpenAI-GPT4":   {"model": "gpt-4o",         "provider": "openai"},
-   "Google-Gemini": {"model": "gemini-2.0-flash", "provider": "google_genai"},
+    "OpenAI-GPT3.5": {"model": "gpt-3.5-turbo",    "provider": "openai"},
+    "OpenAI-GPT4":   {"model": "gpt-4o",            "provider": "openai"},
+    "Google-Gemini": {"model": "gemini-2.0-flash",  "provider": "google_genai"},
 }
 
+
 class LLMGenerator:
+    """Provider-agnostic LLM client that wraps LangChain's init_chat_model."""
+
     def __init__(self, provider="OpenAI-GPT3.5", api_key=None):
+        """Initialise the LangChain client for the given provider.
+
+        Parameters
+        ----------
+        provider : str
+            Key from PROVIDER_CONFIG (e.g. "OpenAI-GPT3.5", "Google-Gemini").
+        api_key : str, optional
+            API key injected into the environment for the selected provider.
+        """
         self.provider = provider
         config = PROVIDER_CONFIG.get(provider)
         if not config:
             raise ValueError(f"Unknown provider: {provider}")
 
-        # Set API key in environment so LangChain picks it up automatically
         if api_key:
             if provider in ["OpenAI-GPT3.5", "OpenAI-GPT4"]:
                 os.environ["OPENAI_API_KEY"] = api_key
@@ -36,6 +45,12 @@ class LLMGenerator:
         print(f" LangChain client initialized for {provider}")
 
     def generate_batch(self, prompt_data: List[Dict]) -> List[Dict]:
+        """Send each prompt to the LLM and return enriched result dicts.
+
+        Each input dict is copied and a ``"response"`` key is added containing
+        the model's text output. API errors are caught and stored as
+        ``"[Error: ...]"`` strings so the pipeline never raises.
+        """
         results = []
         print(f" Generating responses using {self.provider}...")
 
@@ -63,7 +78,7 @@ class LLMGenerator:
             if (i + 1) % 10 == 0:
                 print(f"   Progress: {i+1}/{len(prompt_data)} prompts processed")
 
-            time.sleep(1.0)  # rate limiting
+            time.sleep(1.0)
 
         print(f" Completed: {len(results)} responses generated")
         return results

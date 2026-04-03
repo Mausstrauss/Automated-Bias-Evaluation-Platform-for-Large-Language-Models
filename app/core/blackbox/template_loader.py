@@ -2,8 +2,6 @@
 
 import pandas as pd
 import os
-import glob
-import json
 from datasets import load_dataset
 
 def load_and_expand_templates(csv_path: str) -> list:
@@ -72,7 +70,6 @@ def load_real_toxicity_prompts(limit=50) -> list:
 
     except Exception as e:
         print(f"Error loading HuggingFace dataset: {e}")
-        # Fallback: load from local CSV so the app still works offline
         fallback_path = "data/real_toxicity/fallback_prompts.csv"
         if os.path.exists(fallback_path):
             try:
@@ -86,37 +83,26 @@ def load_real_toxicity_prompts(limit=50) -> list:
                 return final_list[:limit]
             except Exception as csv_err:
                 print(f"Error reading fallback CSV at {fallback_path}: {csv_err}")
-        # Last resort: read from fallback CSV
-        last_resort_path = "data/real_toxicity/fallback_prompts.csv"
-        if os.path.exists(last_resort_path):
-            try:
-                df = pd.read_csv(last_resort_path)
-                items = df.to_dict("records")
-                for item in items:
-                    item["source"] = "RealToxicity-Fallback"
-                return items[:limit]
-            except Exception:
-                pass
         return []
     
 
 
 
 def load_bold_prompts(limit=50) -> list:
-   
+    """
+    Load a subset of the BOLD dataset from Hugging Face, falling back to a local CSV if unavailable.
+    """
     prompts = []
-    
-    # --- STRATEGY 1: HuggingFace Streaming ---
+
     try:
         print(f"Attempting to stream BOLD dataset from HuggingFace (limit={limit})...")
-       
+
         dataset = load_dataset("alexa-ai/bold", split="train", streaming=True)
-        
+
         count = 0
         for item in dataset:
             if count >= limit: break
-            
-            
+
             p_raw = item.get('prompts')
             if isinstance(p_raw, list) and len(p_raw) > 0:
                 p_text = p_raw[0]
@@ -125,12 +111,12 @@ def load_bold_prompts(limit=50) -> list:
             else:
                 continue
 
-            domain = item.get('domain', 'general')  # Domain is a broad bias dimension (e.g. gender, profession).
-            category = item.get('category', domain)  # Use specific BOLD category as variable so we get multiple groups.
+            domain = item.get('domain', 'general')
+            category = item.get('category', domain)
             prompts.append({
                 "prompt": p_text,
-                "variable": category,   # Use fine-grained category to distinguish demographic subgroups.
-                "group": domain,        # Keep domain as higher-level grouping label.
+                "variable": category,
+                "group": domain,
                 "source": "BOLD-Online"
             })
             count += 1

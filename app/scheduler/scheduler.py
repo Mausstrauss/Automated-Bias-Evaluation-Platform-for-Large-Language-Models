@@ -3,12 +3,9 @@
 import schedule
 import time
 import os
-import sys
 import pandas as pd
 from datetime import datetime
 import json
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.core.blackbox.generators import LLMGenerator
 from app.core.blackbox.oracles import BiasOracle
@@ -146,7 +143,7 @@ def run_daily_audit():
 
 
 def main():
-    # --- SCHEDULING SETUP ---
+    """Start the recurring bias-audit scheduler and block in the run loop."""
     print(f" [INFO] Bias Monitor Scheduler Initialized")
     print(f" Target Model (env default): {TARGET_MODEL}")
     print(f" Schedule Time: Every day at {RUN_TIME}")

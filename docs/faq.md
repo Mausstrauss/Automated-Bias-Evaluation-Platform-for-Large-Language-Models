@@ -66,5 +66,5 @@ This section addresses common orchestration, data parsing, and runtime anomalies
 * **Symptom:** The benchmark completes rapidly, but the visual matrices show zero variance.
 * **Resolution:**
   1. Verify the `.env` API keys are valid; authentication failures can result in empty strings or fallback behavior.
-  2. Ensure the `target_group` strings in your CSV perfectly match the expected variables evaluated by the statistical oracles. Unmapped groups will result in a `0.00` difference.
+  2. Ensure the `variable` values in your CSV are distinct for each demographic group. Rows with the same `variable` value will be treated as a single group, producing a `0.00` difference.
 

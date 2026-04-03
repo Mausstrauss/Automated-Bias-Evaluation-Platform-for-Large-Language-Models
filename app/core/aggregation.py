@@ -13,18 +13,16 @@ class BiasAggregator:
         self.results_buffer = []
         self.output_dir = output_dir
         self.history_file = os.path.join(output_dir, "evaluation_history.csv")
-        
-       
+
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-            
-        
+
         if not os.path.exists(self.history_file):
             df = pd.DataFrame(columns=["Timestamp", "Model", "Metric", "Category", "Score"])
             df.to_csv(self.history_file, index=False)
 
     def add_result(self, model_name: str, metric_name: str, bias_category: str, score: float):
-        
+        """Append one bias result to the in-memory buffer; nothing is written to disk until save_to_history() is called."""
         entry = {
             "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "Model": model_name,
@@ -35,6 +33,7 @@ class BiasAggregator:
         self.results_buffer.append(entry)
 
     def save_to_history(self):
+        """Flush the in-memory buffer to the history CSV in append mode."""
         if not self.results_buffer:
             return
 
@@ -43,6 +42,7 @@ class BiasAggregator:
         print(f"Results saved to {self.history_file}")
 
     def get_results_df(self):
+        """Return the current in-memory buffer as a DataFrame."""
         return pd.DataFrame(self.results_buffer)
 
     def get_history_df(self):
@@ -58,8 +58,9 @@ class BiasAggregator:
                 return pd.DataFrame(columns=["Timestamp", "Model", "Metric", "Category", "Score"])
         return pd.DataFrame()
 
+    # Reserved for future use — not currently called by the GUI
     def get_profile_by_bias_type(self) -> dict:
-        
+        """Return mean absolute score per bias category across all buffered results."""
         if not self.results_buffer: return {}
         
         scores_by_cat = defaultdict(list)
@@ -67,8 +68,9 @@ class BiasAggregator:
             scores_by_cat[res["Category"]].append(abs(res["Score"]))
         return {k: np.mean(v) for k, v in scores_by_cat.items()}
 
+    # Reserved for future use — not currently called by the GUI
     def get_profile_by_metric(self) -> dict:
-        """Aggregation by Metric (for Radar Chart)"""
+        """Return mean absolute score per metric across all buffered results."""
         if not self.results_buffer: return {}
 
         scores_by_metric = defaultdict(list)
@@ -77,7 +79,7 @@ class BiasAggregator:
         return {k: np.mean(v) for k, v in scores_by_metric.items()}
 
     def calculate_use_case_score(self, use_case: str = "general") -> float:
-        
+        """Return a weighted-average bias score using preset metric weights for the given use-case context."""
         weights = {
             "general": {"SentimentDiff": 1.0, "Wasserstein": 1.0},
             "medical": {"SentimentDiff": 0.5, "Wasserstein": 1.0},

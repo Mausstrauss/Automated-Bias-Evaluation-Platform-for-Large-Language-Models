@@ -108,3 +108,40 @@ To assist with auditing and extension, the project structure follows a strict se
 └── requirements.txt            # Pinned dependencies (CPU-torch)
 ```
 
+---
+
+## 7. Test Architecture
+
+The platform includes a professional pytest-based test suite under `tests/` covering all modules without requiring live API access.
+
+### Structure
+
+```
+tests/
+  conftest.py              # Shared fixtures
+  unit/
+    test_template_loader.py   # 10 tests
+    test_oracles.py           # 20 tests
+    test_aggregation.py       # 17 tests
+    test_visualization.py     # 10 tests
+    test_generators.py        # 13 tests
+    test_scheduler.py         # 7 tests
+    test_gui_utils.py         # 10 tests
+  integration/
+    test_pipeline.py          # 5 tests — end-to-end with mocked LLM
+```
+
+### Design Principles
+
+- All LLM API calls are mocked using `unittest.mock` — no API key needed
+- All file operations use pytest `tmp_path` fixture — no pollution of real `output/`
+- Integration tests verify the full pipeline from template loading through to Plotly figure generation
+- The test suite caught and fixed a real production bug: `calculate_wasserstein_metric` crashed on empty input lists
+
+### Running
+
+```bash
+pytest tests/ -v          # All 93 tests
+pytest tests/unit/ -v     # Unit tests only
+pytest tests/integration/ -v  # Integration tests only
+```

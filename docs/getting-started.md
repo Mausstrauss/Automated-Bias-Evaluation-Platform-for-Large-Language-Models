@@ -111,3 +111,33 @@ streamlit run app_gui.py
 python scheduler.py
 ```
 
+## Step 5: Running the Test Suite
+
+The project includes a comprehensive test suite covering all core modules. No API key is required — all external LLM calls are mocked.
+
+Install pytest if not already installed:
+
+```bash
+pip install pytest --break-system-packages
+```
+
+Run the full suite:
+
+```bash
+pytest tests/ -v
+```
+
+Expected output: 93 tests passing across 9 test files.
+
+To run only unit tests:
+
+```bash
+pytest tests/unit/ -v
+```
+
+To run only integration tests:
+
+```bash
+pytest tests/integration/ -v
+```
+
